@@ -8,7 +8,7 @@
 library(haven)
 library(reshape2)
 library(plyr)
-library(Hmisc)
+# library(Hmisc)
 detach(package:dplyr)
 library(dplyr)
 
@@ -204,26 +204,34 @@ names(chem_maj_1) <-
 chem_maj_tot <- rbind(chem_maj_1, chem_maj_2, chem_maj_3, chem_maj_4, chem_maj_5)
 rm(list=c("chem_maj_1", "chem_maj_2", "chem_maj_3", "chem_maj_4", "chem_maj_5"))
 
+# for now only select variables you need for analysis
+chem_maj_tot <- select(chem_maj_tot, -chem_use, -value_p, -gov, - gov_qty, -gov_unit, -gov_value_c, -gov_value_p)
+
 # make factors of important variables
-chem_maj_tot$type <- factor(chem_maj_tot$type,
-                            labels=c("organic",
-                                     "inorganic",
-                                     "herbicide",
-                                     "insecticide",
-                                     "fungicide",
-                                     "other"))
+chem_maj_tot$type <- as_factor(chem_maj_tot$type)
 chem_maj_tot$unit <- as_factor(chem_maj_tot$unit)
-chem_maj_tot$gov <- as_factor(chem_maj_tot$gov)
-chem_maj_tot$gov_unit <- as_factor(chem_maj_tot$gov_unit)
-# chem_maj_tot$crop1 <- as_factor(chem_maj_tot$crop1)
-# chem_maj_tot$crop2 <- as_factor(chem_maj_tot$crop2)
-# chem_maj_tot$crop3 <- as_factor(chem_maj_tot$crop3)
-# chem_maj_tot$crop4 <- as_factor(chem_maj_tot$crop4)
+chem_maj_tot$crop1 <- as_factor(chem_maj_tot$crop1)
+chem_maj_tot$crop2 <- as_factor(chem_maj_tot$crop2)
+chem_maj_tot$crop3 <- as_factor(chem_maj_tot$crop3)
+chem_maj_tot$crop4 <- as_factor(chem_maj_tot$crop4)
 
 # grab only plots where some maize was grown
 chem_maj_tot <- melt(chem_maj_tot, measure.vars=c("crop1", "crop2", "crop3", "crop4")) %>%
         rename(crop=value) %>% select(-variable)
-       
+
+# remove any NA values for chemical type
+chem_maj_tot <- chem_maj_tot[!is.na(chem_maj_tot$type),]
+
+# add in dummy variables for whether a
+# a particular chemical was used on a plot - try to get to 711
+chem_maj_tot <- ddply(chem_maj_tot, .(hhno, plotno, crop), summarise,
+                      pest=ifelse(any(type %in% c("Herbicide", "Insecticide", "Fungicide")), 1, 0),
+                      org=ifelse(any(type %in% "Fertilizer (organic)"), 1, 0),
+                      inorg=ifelse(any(type %in% "Fertilizer (inorganic)"), 1, 0),
+                      qty=ifelse(any(type %in% "Fertilizer (inorganic)"), qty, NA),
+                      prc=ifelse(any(type %in% "Fertilizer (inorganic)"), value_c, NA))
+  
+# --------     
 # add in dummy variables for whether a
 # a particular chemical was used on a plot - try to get to 711
 chem_maj_tot <- ddply(chem_maj_tot, .(hhno, plotno, crop), summarise,
