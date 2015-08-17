@@ -17,11 +17,17 @@ options(scipen=999)
 ############### OUTPUT ################
 #######################################
 
+oput <- read_dta("data/UGA/2010/AGSEC5A.dta") %>%
+  select(HHID, pltid, cropID, qty=a5aq6a, unit=a5aq6c,
+         con=a5aq6d, qty_sold=a5aq7a, unit_sold=a5aq7c,
+         valu=a5aq8, transCost=a5aq10)
+
 
 #######################################
 ############# CHEMICAL ################
 #######################################
 
+plot <- read_dta("data/UGA/2010/AGSEC3A.dta")
 
 #######################################
 ############### GEO ###################
