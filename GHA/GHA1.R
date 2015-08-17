@@ -2,7 +2,7 @@
 ####### GHANA data preparation ########
 #######################################  
 
-# 10/08/2015
+# 17/08/2015
 
 # for munging
 library(haven)
@@ -12,7 +12,7 @@ library(Hmisc)
 detach(package:dplyr)
 library(dplyr)
 
-fp1 <- "N:/Internationaal Beleid  (IB)/Projecten/2285000066 Africa Maize Yield Gap/SurveyData/GHA/Data/EGC-ISSER Public Cleaned Data"
+fp1 <- "C:/Users/Tomas/Documents/Work/LEI/"
 setwd(fp1)
 
 # -------------------------------------
@@ -35,7 +35,7 @@ setwd(fp1)
 # Major season
 # -------------------------------------
 
-oput_maj <- read_dta("S4AV1.dta")
+oput_maj <- read_dta("data/GHA/S4AV1.dta")
 oput_maj$id1 <- as.character(as_factor(oput_maj$id1))
 oput_maj$s4v_a78i <- as_factor(oput_maj$s4v_a78i)
 oput_maj$s4v_a78ii <- as_factor(oput_maj$s4v_a78ii)
@@ -94,61 +94,6 @@ oput_maj_mze <- filter(oput_maj_tot, crop %in% "Maize") %>%
 
 
 # -------------------------------------
-# Minor season
-# -------------------------------------
-
-oput_min <- read_dta("S4AV2.dta")
-
-oput_min$id1 <- as.character(as_factor(oput_min$id1))
-oput_min$s4v_a120i <- as_factor(oput_min$s4v_a120i)
-oput_min$s4v_a120ii <- as_factor(oput_min$s4v_a120ii)
-oput_min$s4v_a120iii <- as_factor(oput_min$s4v_a120iii)
-oput_min$s4v_a120iv <- as_factor(oput_min$s4v_a120iv)
-oput_min$s4v_a120v <- as_factor(oput_min$s4v_a120v)
-
-# need to select out the data seperately and rbind everything together
-# first crop
-crop_min_1 <- select(oput_min, reg=id1, id3, hhno, plot_no=s4av2_plotno, s4v_a120i, s4v_a121i:s4v_a128 )
-crop_min_2 <- select(oput_min, reg=id1, id3, hhno, plot_no=s4av2_plotno, s4v_a120ii, s4v_a129i:s4v_a136)
-crop_min_3 <- select(oput_min, reg=id1, id3, hhno, plot_no=s4av2_plotno, s4v_a120iii, s4v_a137i:s4v_a144)
-crop_min_4 <- select(oput_min, reg=id1, id3, hhno, plot_no=s4av2_plotno, s4v_a120iv, s4v_a145i:s4v_a152)
-crop_min_5 <- select(oput_min, reg=id1, id3, hhno, plot_no=s4av2_plotno, s4v_a120v, s4v_a153i:s4v_a160)
-
-# drop any NA values which are only there because of weird format
-crop_min_1 <- crop_min_1[!is.na(crop_min_1$s4v_a120i),]
-crop_min_2 <- crop_min_2[!is.na(crop_min_2$s4v_a120ii),]
-crop_min_3 <- crop_min_3[!is.na(crop_min_3$s4v_a120iii),]
-crop_min_4 <- crop_min_3[!is.na(crop_min_4$s4v_a120iv),]
-crop_min_5 <- crop_min_3[!is.na(crop_min_5$s4v_a120v),]
-
-
-# now need to change the names so they are all the same
-names(crop_min_1) <- names(crop_min_2) <- names(crop_min_3) <- names(crop_min_4) <- names(crop_min_5) <-
-        c("reg", "id3", "hhno", "plot_no", "crop", "crop_id", "type", "quantity",
-          "unit", "value_c", "value_p", "revenue_c", "revenue_p", "left_over",
-          "left_over_value_c", "left_over_value_p", "disease", "percent_lost")
-
-# Bind together all of the oput values
-oput_min_tot <- rbind(crop_min_1, crop_min_2, crop_min_3, crop_min_4, crop_min_5)
-rm(list=c("crop_min_1", "crop_min_2", "crop_min_3", "crop_min_4", "crop_min_5"))
-
-oput_min_tot$crop <- as_factor(oput_min_tot$crop)
-oput_min_tot$type <- as_factor(oput_min_tot$type)
-oput_min_tot$left_over <- as_factor(oput_min_tot$left_over)
-oput_min_tot$disease <- as_factor(oput_min_tot$disease)
-
-# add a variable for the number of crops on a plot
-# and whether or not a legume was grown on that plot
-
-oput_min_tot <- ddply(oput_min_tot, .(hhno, plot_no), transform,
-                        crop_count=length(crop[!is.na(crop)]),
-                        legume=ifelse(any(crop %in% "Beans/Peas"), 1, 0))
-
-oput_min_mze <- filter(oput_min_tot, crop %in% "Maize") %>% 
-        select(hhno, plot_no, qty=quantity, unit, value_c, crop_count, legume)
-
-
-# -------------------------------------
 # There are many units of output and 
 # it is necessary to make conversions
 # unfortunately conversions are not 
@@ -161,11 +106,10 @@ oput_min_mze <- filter(oput_min_tot, crop %in% "Maize") %>%
 # variation in units across communities.
 # -------------------------------------
 
-# convert to kilograms using conversions in community questionnaire
-fp2 <- "N:/Internationaal Beleid  (IB)/Projecten/2285000066 Africa Maize Yield Gap/SurveyData/GHA/Data/Rural"
-setwd(fp2)
+# convert to kilograms using conversions in sec 5A of
+# rural community questionnaire
 
-SEC5A <- read_dta("SEC 5A.dta")
+SEC5A <- read_dta("data/GHA/SEC 5A.dta")
 
 # construct an auxillary conversion table
 aux <- melt(SEC5A, id.vars=c("reg", "EA_No", "commcode", "s5", "s5a_1"))
@@ -181,33 +125,27 @@ cnvrt <- data.frame(variable, unit)
 aux <- left_join(aux, cnvrt)
 aux_mze <- filter(aux, s5a_1 %in% "MAIZE")
 
-# join unit table with maize output for both major
-# and minor seasons. For goods other than maize this
+# join unit table with maize output. 
+# For goods other than maize this
 # conversions are difficult because of spelling
 # mistakes
 
 oput_maj_mze <- left_join(oput_maj_mze, select(aux_mze, unit, kilo_bar))
-oput_min_mze <- left_join(oput_min_mze, select(aux_mze, unit, kilo_bar))
 
 # calculate quantity in kilograms
 
 oput_maj_mze <- mutate(oput_maj_mze, qty = qty *  kilo_bar)
-oput_min_mze <- mutate(oput_min_mze, qty = qty *  kilo_bar)
-
 
 # get rid of the unit variable and NA values for maize quantity
 oput_maj_mze <- select(oput_maj_mze, -unit, -kilo_bar)
 oput_maj_mze <- oput_maj_mze[!is.na(oput_maj_mze$qty),]
 
-oput_min_mze <- select(oput_min_mze, -unit, -kilo_bar)
-oput_min_mze <- oput_min_mze[!is.na(oput_min_mze$qty),]
 
 #######################################
 ################ area #################
 #######################################
 
-setwd(fp1)
-area <- read_dta("S4AII.dta") 
+area <- read_dta("data/GHA/S4AII.dta") 
 
 area <- select(area, reg=id1, id2, hhno, plotno=plot_no,
                     size=s4aii_a10, unit=s4aii_a11, test_area=s4aii_a12,
@@ -238,15 +176,13 @@ area <- select(area, reg, hhno, plotno,  area_ha)
 # Major season
 # -------------------------------------
 
-setwd(fp1)
+chem_maj <- read_dta("data/GHA/S4AVI1.dta") 
 
-chem_maj <- read_dta("S4AVI1.dta") 
-
-chem_maj_1 <- select(chem_maj, hhno, plotno=s4avi1_plotno, reg=id1, id3, s4avi_a162:s4avi_a169iv)
-chem_maj_2 <- select(chem_maj, hhno, plotno=s4avi1_plotno, reg=id1, id3, s4avi_a170:s4avi_a177iv)
-chem_maj_3 <- select(chem_maj, hhno, plotno=s4avi1_plotno, reg=id1, id3, s4avi_a178:s4avi_a185iv)
-chem_maj_4 <- select(chem_maj, hhno, plotno=s4avi1_plotno, reg=id1, id3, s4avi_a186:s4avi_a193iv)
-chem_maj_5 <- select(chem_maj, hhno, plotno=s4avi1_plotno, reg=id1, id3, s4avi_a194:s4avi_a201iv)
+chem_maj_1 <- select(chem_maj, hhno, plotno=s4avi1_plotno, s4avi_a162:s4avi_a169iv)
+chem_maj_2 <- select(chem_maj, hhno, plotno=s4avi1_plotno, s4avi_a170:s4avi_a177iv)
+chem_maj_3 <- select(chem_maj, hhno, plotno=s4avi1_plotno, s4avi_a178:s4avi_a185iv)
+chem_maj_4 <- select(chem_maj, hhno, plotno=s4avi1_plotno, s4avi_a186:s4avi_a193iv)
+chem_maj_5 <- select(chem_maj, hhno, plotno=s4avi1_plotno, s4avi_a194:s4avi_a201iv)
 
 chem_maj_1 <- chem_maj_1[!is.na(chem_maj_1$s4avi_a162),]
 chem_maj_2 <- chem_maj_2[!is.na(chem_maj_2$s4avi_a170),]
@@ -258,7 +194,7 @@ names(chem_maj_1) <-
         names(chem_maj_2) <-
         names(chem_maj_3) <-
         names(chem_maj_4) <-
-        names(chem_maj_5) <- c("hhno", "plotno", "reg", "id3", "chem_use", "type",
+        names(chem_maj_5) <- c("hhno", "plotno", "chem_use", "type",
                           "qty", "unit", "value_c", "value_p", "gov", "gov_qty",
                           "gov_unit", "gov_value_c", "gov_value_p", "crop1",
                           "crop2", "crop3", "crop4")
@@ -269,97 +205,35 @@ chem_maj_tot <- rbind(chem_maj_1, chem_maj_2, chem_maj_3, chem_maj_4, chem_maj_5
 rm(list=c("chem_maj_1", "chem_maj_2", "chem_maj_3", "chem_maj_4", "chem_maj_5"))
 
 # make factors of important variables
-chem_maj_tot$reg <- as_factor(chem_maj_tot$reg)
-chem_maj_tot$chem_use <- as_factor(chem_maj_tot$chem_use)
-chem_maj_tot$type <- as_factor(chem_maj_tot$type)
+chem_maj_tot$type <- factor(chem_maj_tot$type,
+                            labels=c("organic",
+                                     "inorganic",
+                                     "herbicide",
+                                     "insecticide",
+                                     "fungicide",
+                                     "other"))
 chem_maj_tot$unit <- as_factor(chem_maj_tot$unit)
 chem_maj_tot$gov <- as_factor(chem_maj_tot$gov)
 chem_maj_tot$gov_unit <- as_factor(chem_maj_tot$gov_unit)
-chem_maj_tot$crop1 <- as_factor(chem_maj_tot$crop1)
-chem_maj_tot$crop2 <- as_factor(chem_maj_tot$crop2)
-chem_maj_tot$crop3 <- as_factor(chem_maj_tot$crop3)
-chem_maj_tot$crop4 <- as_factor(chem_maj_tot$crop4)
+# chem_maj_tot$crop1 <- as_factor(chem_maj_tot$crop1)
+# chem_maj_tot$crop2 <- as_factor(chem_maj_tot$crop2)
+# chem_maj_tot$crop3 <- as_factor(chem_maj_tot$crop3)
+# chem_maj_tot$crop4 <- as_factor(chem_maj_tot$crop4)
 
 # grab only plots where some maize was grown
 chem_maj_tot <- melt(chem_maj_tot, measure.vars=c("crop1", "crop2", "crop3", "crop4")) %>%
         rename(crop=value) %>% select(-variable)
        
-
-# remove any NA values for chemical type
-chem_maj_tot <- chem_maj_tot[!is.na(chem_maj_tot$type),]
-
 # add in dummy variables for whether a
 # a particular chemical was used on a plot - try to get to 711
 chem_maj_tot <- ddply(chem_maj_tot, .(hhno, plotno, crop), summarise,
-                      pest=ifelse(any(type %in% c("Herbicide", "Insecticide", "Fungicide")), 1, 0),
-                      org=ifelse(any(type %in% "Fertilizer (organic)"), 1, 0),
-                      inorg=ifelse(any(type %in% "Fertilizer (inorganic)"), 1, 0),
-                      qty=ifelse(any(type %in% "Fertilizer (inorganic)"), qty, NA),
-                      prc=ifelse(any(type %in% "Fertilizer (inorganic)"), value_c, NA))
+                      pest=ifelse(any(type %in% c("herbicide", "insecticide", "fungicide")), 1, 0),
+                      manure=ifelse(any(type %in% "organic"), 1, 0),
+                      inorg=ifelse(any(type %in% "inorganic"), 1, 0),
+                      qty=ifelse(any(type %in% "inorganic"), qty, NA),
+                      prc=ifelse(any(type %in% "inorganic"), value_c, NA))
 
 chem_maj_tot$qty <- as.numeric(chem_maj_tot$qty)
-
-
-
-# -------------------------------------
-# Minor season
-# -------------------------------------
-
-chem_min <- read_dta("S4AVI2.dta") 
-
-chem_min_1 <- select(chem_min, hhno, plotno=s4avi2_plotno, s4avi_a203:s4avi_210iv)
-chem_min_2 <- select(chem_min, hhno, plotno=s4avi2_plotno, s4avi_211:s4avi_218iv)
-chem_min_3 <- select(chem_min, hhno, plotno=s4avi2_plotno, s4avi_219:s4avi_226iv)
-chem_min_4 <- select(chem_min, hhno, plotno=s4avi2_plotno, s4avi_227:s4avi_234iv)
-chem_min_5 <- select(chem_min, hhno, plotno=s4avi2_plotno, s4avi_235:s4avi_242iv)
-
-chem_min_1 <- chem_min_1[!is.na(chem_min_1$s4avi_a203),]
-chem_min_2 <- chem_min_2[!is.na(chem_min_2$s4avi_211),]
-chem_min_3 <- chem_min_3[!is.na(chem_min_3$s4avi_219),]
-chem_min_4 <- chem_min_4[!is.na(chem_min_4$s4avi_227),]
-chem_min_5 <- chem_min_5[!is.na(chem_min_5$s4avi_235),]
-
-names(chem_min_1) <-
-        names(chem_min_2) <-
-        names(chem_min_3) <-
-        names(chem_min_4) <-
-        names(chem_min_5) <- c("hhno", "plotno", "chem_use", "type",
-                               "qty", "unit", "value_c", "value_p", "gov", "gov_qty",
-                               "gov_unit", "gov_value_c", "gov_value_p", "crop1",
-                               "crop2", "crop3", "crop4")
-
-
-# bind all chemicals together and make factors from labelled vectors
-chem_min_tot <- rbind(chem_min_1, chem_min_2, chem_min_3, chem_min_4, chem_min_5)
-rm(list=c("chem_min_1", "chem_min_2", "chem_min_3", "chem_min_4", "chem_min_5"))
-
-# make factors of important variables
-chem_min_tot$chem_use <- as_factor(chem_min_tot$chem_use)
-chem_min_tot$type <- as_factor(chem_min_tot$type)
-chem_min_tot$unit <- as_factor(chem_min_tot$unit)
-chem_min_tot$gov <- as_factor(chem_min_tot$gov)
-chem_min_tot$gov_unit <- as_factor(chem_min_tot$gov_unit)
-chem_min_tot$crop1 <- as_factor(chem_min_tot$crop1)
-chem_min_tot$crop2 <- as_factor(chem_min_tot$crop2)
-chem_min_tot$crop3 <- as_factor(chem_min_tot$crop3)
-chem_min_tot$crop4 <- as_factor(chem_min_tot$crop4)
-
-# grab only plots where some maize was grown
-chem_min_tot <- melt(chem_min_tot, measure.vars=c("crop1", "crop2", "crop3", "crop4")) %>%
-        rename(crop=value) %>% select(-variable)
-
-
-# remove any NA values for chemical type
-chem_min_tot <- chem_min_tot[!is.na(chem_min_tot$type),]
-
-# add in dummy variables for whether a
-# a particular chemical was used on a plot - try to get to 711
-chem_min_tot <- ddply(chem_min_tot, .(hhno, plotno, crop), summarise,
-                      pest=ifelse(any(type %in% c("Herbicide", "Insecticide", "Fungicide")), 1, 0),
-                      org=ifelse(any(type %in% "Fertilizer (organic)"), 1, 0),
-                      inorg=ifelse(any(type %in% "Fertilizer (inorganic)"), 1, 0),
-                      qty=ifelse(any(type %in% "Fertilizer (inorganic)"), qty, NA),
-                      prc=ifelse(any(type %in% "Fertilizer (inorganic)"), value_c, NA))
 
 # -------------------------------------
 # Don't know what kind of fertilizer 
