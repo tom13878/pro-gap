@@ -50,12 +50,18 @@ rm(list=c("oput", "legumes"))
 
 plot <- read_dta("data/TZA/TZNPS2AGRDTA/AG_SEC3A.dta") %>%
   select(y2_hhid, plotnum, maze=zaocode, irrig=ag3a_17,
-         manure=ag3a_39, pest=ag3a_58)
+         manure=ag3a_39, pest=ag3a_58, fallow_year=ag3a_21, fallow=ag3a_22)
 
 plot$maze <- ifelse(plot$maze %in% 11, 1, 0)
 plot$irrig <- ifelse(plot$irrig %in% 1, 1, 0)
 plot$manure <- ifelse(plot$manure %in% 1, 1, 0)
 plot$pest <- ifelse(plot$pest %in% 1, 1, 0)
+
+# two questions on fallow - make sure they match up correctly
+plot$fallow_year <- ifelse(plot$fallow_year %in% 98, NA, plot$fallow_year)
+plot$fallow <- ifelse(plot$fallow_year %in% 0, 0, plot$fallow )
+plot$fallow <- ifelse(is.na(plot$fallow_year), NA, plot$fallow)
+plot <- select(plot, -fallow_year)
 
 fert1 <- read_dta("data/TZA/TZNPS2AGRDTA/AG_SEC3A.dta") %>%
   select(y2_hhid, plotnum, typ=ag3a_46, qty=ag3a_47, vouch=ag3a_48, valu=ag3a_49)
@@ -106,9 +112,31 @@ fert <- group_by(fert, y2_hhid, plotnum) %>%
 # join back with the rest of the data
 plot <- left_join(plot, fert)
 
-
-
 rm(list=c("fert1", "fert2", "fert"))
+
+#######################################
+############### LABOUR ################
+#######################################
+
+lab <- read_dta( "./Data/Tanzania/2010_11/Stata/TZNPS2AGRDTA/AG_SEC3A.dta",
+                  convert.factors=TRUE )
+
+# start with househjold and family labour
+lab <- select( AG3A, y2_hhid, plotnum, ag3a_70_id1:ag3a_72_9 )
+bad <- grep( "ag3a_70_id", names( lab ) )
+
+# remove houshold labour IDs and question ag3a_71 which we don't need
+lab <- lab[, -bad]
+lab <- select( lab, -ag3a_71 )
+
+# remove the wage paid in shillings to hired labour - might want this back later
+bad <- names( lab )[( length( lab )-15 ):length( lab )][seq( from=4, to=16, by=4 )]
+lab <- lab[, -which( names( lab ) %in% bad )]
+
+# create a dataframe with just family and hired labour
+lab <- transmute( lab, y2_hhid, plotnum,
+                  fam_lab_days=rowSums( lab[, 3:26], na.rm=TRUE ),
+                  hir_lab_days=rowSums( lab[, 27:ncol( lab )], na.rm=TRUE ) )
 
 #######################################
 ############### GEO ###################

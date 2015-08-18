@@ -48,12 +48,18 @@ rm(list=c("oput", "legumes"))
 
 plot <- read_dta("AG_SEC_3A.dta") %>%
   select(hhid=y3_hhid, plotnum, maze=ag3a_07_2, irrig=ag3a_18,
-         manure=ag3a_41, pest=ag3a_60)
+         manure=ag3a_41, pest=ag3a_60, fallow_year=ag3a_22, fallow=ag3a_23)
 
 plot$irrig <- ifelse(plot$irrig %in% 1, 1, 0)
 plot$manure <- ifelse(plot$manure %in% 1, 1, 0)
 plot$pest <- ifelse(plot$pest %in% 1, 1, 0)
 plot$maze <- ifelse(plot$maze %in% 11, 1, 0)
+
+# two questions on fallow - make sure they match up correctly
+plot$fallow_year <- ifelse(plot$fallow_year %in% 98, NA, plot$fallow_year)
+plot$fallow <- ifelse(plot$fallow_year %in% 0, 0, plot$fallow )
+plot$fallow <- ifelse(is.na(plot$fallow_year), NA, plot$fallow)
+plot <- select(plot, -fallow_year)
 
 fert1 <- read_dta("AG_SEC_3A.dta") %>%
   select(hhid=y3_hhid, plotnum, typ=ag3a_48, qty=ag3a_49, vouch=ag3a_50, valu=ag3a_51)
