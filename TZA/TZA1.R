@@ -146,7 +146,9 @@ lab$lab <- ifelse(lab$lab %in% 0, NA, lab$lab)
 
 geo <- read.csv("data/TZA/TZA_geo.total2010.csv") %>%
   select(y2_hhid, lon, lat, SPEI, RootDepth, region=NAME_1,
-         AEZ=land03) %>% unique()
+         AEZ=land03, ph=ph_sd1_sd3, ph2=ph_sd1_sd5,
+         SOC=SOC_sd1_sd3, SOC2=SOC_sd1_sd5, rain=gsRainfall) %>%
+  unique()
 
 geo$y2_hhid <- as.character(geo$y2_hhid)
 geo$y2_hhid <- ifelse(str_length(geo$y2_hhid) < 16, paste("0", geo$y2_hhid, sep=""), geo$y2_hhid)

@@ -153,7 +153,9 @@ implmt <- read_dta("AG_SEC_11.dta") %>%
 setwd("C:/Users/Tomas/Documents/Work/LEI")
 geo <- read.csv("TZA_geo.total2012.csv") %>%
   select(hhid=y3_hhid, lon, lat, SPEI, RootDepth, region=NAME_1,
-        AEZ=land03) %>% unique()
+        AEZ=land03, ph=ph_sd1_sd3, ph2=ph_sd1_sd5,
+        SOC=SOC_sd1_sd3, SOC2=SOC_sd1_sd5, rain=gsRainfall) %>%
+  unique()
 
 labels <- c("Tropic-cool/humid", "Tropic-cool/semiarid", "Tropic-cool/subhumid", "Tropic-warm/humid", "Tropic-warm/semiarid", "Tropic-warm/subhumid")
 geo$AEZ <- factor(geo$AEZ, labels=labels)
