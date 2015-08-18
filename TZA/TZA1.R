@@ -153,6 +153,19 @@ geo <- read.csv("data/TZA/TZA_geo.total2010.csv") %>%
 geo$y2_hhid <- as.character(geo$y2_hhid)
 geo$y2_hhid <- ifelse(str_length(geo$y2_hhid) < 16, paste("0", geo$y2_hhid, sep=""), geo$y2_hhid)
 
+# add a zone variable
+geo$zone[geo$region %in% c("Kagera","Mwanza", "Mara")] <- "Lake"
+geo$zone[geo$region %in% c("Shinyanga","Kigoma", "Tabora")] <- "Western"
+geo$zone[geo$region %in% c("Arusha","Kilimanjaro", "Manyara", "Tanga")] <- "Northern"
+geo$zone[geo$region %in% c("Singida","Dodoma")] <- "Central"
+geo$zone[geo$region %in% c("Rukwa", "Mbeya","Iringa")] <- "Southern Highlands"
+geo$zone[geo$region %in% c("Pwani","Morogoro", "Dar-Es-Salaam")] <- "Eastern"
+geo$zone[geo$region %in% c("Lindi","Ruvuma", "Mtwara")] <- "Southern"
+geo$zone[geo$region %in% c("Kaskazini-Unguja", "Zanzibar South and Central", "Kusini-Pemba",
+                                     "Kaskazini-Pemba", "Zanzibar West")] <- "Zanzibar"
+
+geo$zone <- factor(geo$zone)
+
 
 #######################################
 ############### AREAs #################
@@ -236,6 +249,9 @@ CS1$maize_prc <- winsor5(CS1$maize_prc, 5)
 CS1$WPn <- ifelse(CS1$WPn %in% 0, NA, CS1$WPn)
 CS1$WPn  <- winsor5(CS1$WPn, 5)
 CS1$WPn <- ifelse(is.na(CS1$WPn), 0, CS1$WPn)
+
+# remove zanzibar zones
+CS1 <- CS1[!CS1$zone %in% "Zanzibar",]
 
 # -------------------------------------
 # Inflate 2010 prices to 2012 prices

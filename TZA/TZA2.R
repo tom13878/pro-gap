@@ -161,6 +161,20 @@ labels <- c("Tropic-cool/humid", "Tropic-cool/semiarid", "Tropic-cool/subhumid",
 geo$AEZ <- factor(geo$AEZ, labels=labels)
 geo$hhid <- as.character(geo$hhid)
 
+# add a zone variable
+geo$zone[geo$region %in% c("Kagera","Mwanza", "Mara")] <- "Lake"
+geo$zone[geo$region %in% c("Shinyanga","Kigoma", "Tabora")] <- "Western"
+geo$zone[geo$region %in% c("Arusha","Kilimanjaro", "Manyara", "Tanga")] <- "Northern"
+
+geo$zone[geo$region %in% c("Singida","Dodoma")] <- "Central"
+geo$zone[geo$region %in% c("Rukwa", "Mbeya","Iringa")] <- "Southern Highlands"
+geo$zone[geo$region %in% c("Pwani","Morogoro", "Dar-Es-Salaam")] <- "Eastern"
+geo$zone[geo$region %in% c("Lindi","Ruvuma", "Mtwara")] <- "Southern"
+geo$zone[geo$region %in% c("Kaskazini-Unguja", "Zanzibar South and Central", "Kusini-Pemba",
+                           "Kaskazini-Pemba", "Zanzibar West")] <- "Zanzibar"
+
+geo$zone <- factor(geo$zone)
+
 #######################################
 ############### AREAs #################
 #######################################
@@ -216,6 +230,9 @@ CS2$maize_prc <- winsor5(CS2$maize_prc, 5)
 CS2$WPn <- ifelse(CS2$WPn %in% 0, NA, CS2$WPn)
 CS2$WPn <- winsor5(CS2$WPn, 5)
 CS2$WPn <- ifelse(is.na(CS2$WPn), 0, CS2$WPn)
+
+# remove zanzibar zones
+CS2 <- CS2[!CS2$zone %in% "Zanzibar",]
 
 CS2 <- select(CS2, -plotnum, -qty, -value)
 
