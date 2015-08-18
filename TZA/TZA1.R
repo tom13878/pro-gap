@@ -118,14 +118,11 @@ rm(list=c("fert1", "fert2", "fert"))
 ############### LABOUR ################
 #######################################
 
-lab <- read_dta( "./Data/Tanzania/2010_11/Stata/TZNPS2AGRDTA/AG_SEC3A.dta",
-                  convert.factors=TRUE )
-
-# start with househjold and family labour
-lab <- select( AG3A, y2_hhid, plotnum, ag3a_70_id1:ag3a_72_9 )
-bad <- grep( "ag3a_70_id", names( lab ) )
-
+lab <- read_dta( "data/TZA/TZNPS2AGRDTA/AG_SEC3A.dta") %>%
+  select( y2_hhid, plotnum, ag3a_70_id1:ag3a_72_9 )
+                  
 # remove houshold labour IDs and question ag3a_71 which we don't need
+bad <- grep( "ag3a_70_id", names( lab ) )
 lab <- lab[, -bad]
 lab <- select( lab, -ag3a_71 )
 
@@ -137,6 +134,11 @@ lab <- lab[, -which( names( lab ) %in% bad )]
 lab <- transmute( lab, y2_hhid, plotnum,
                   fam_lab_days=rowSums( lab[, 3:26], na.rm=TRUE ),
                   hir_lab_days=rowSums( lab[, 27:ncol( lab )], na.rm=TRUE ) )
+
+lab <- transmute(lab, y2_hhid, plotnum, lab=fam_lab_days + hir_lab_days) 
+
+# doesn't make sense to have 0 labour on a plot so set values to zero
+lab$lab <- ifelse(lab$lab %in% 0, NA, lab$lab)
 
 #######################################
 ############### GEO ###################
@@ -175,6 +177,7 @@ implmt <- read_dta("c:/USers/tomas/Documents/work/LEI/data/TZA/TZNPS2AGRDTA/AG_S
 #######################################
 
 CS1 <- left_join(oput_maze, plot)
+CS1 <- left_join(CS1, lab)
 CS1 <- left_join(CS1, areas)
 CS1 <- left_join(CS1, implmt)
 CS1 <- left_join(CS1, geo)
@@ -249,6 +252,7 @@ CS1 <- mutate(CS1,
              N2=N^2,
              asset2=asset^2,
              area2=area^2,
+             lab2=lab^2,
              y12=0
 )
 

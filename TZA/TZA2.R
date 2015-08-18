@@ -94,8 +94,6 @@ fert <- rbind(fert1, fert2)
 
 rm(list=c("comp", "typ", "n", "p", "k", "fert1", "fert2"))
 
-
-
 fert <- mutate(fert,
                Vfert=valu/qty,
                Qn=qty*n,
@@ -112,6 +110,29 @@ fert <- group_by(fert, hhid, plotnum) %>%
 plot <- left_join(plot, fert)
 
 rm(list=c("fert"))
+
+#######################################
+############### LABOUR ################
+#######################################
+
+lab <- read_dta("AG_SEC_3A.dta") %>%
+  select(hhid=y3_hhid, plotnum, ag3a_72_id1:ag3a_74_16 )
+
+# calculate the total labour days for hired and family labour.
+bad <- grep( "ag3a_72_id", names( lab ) )
+lab <- lab[, -bad]
+
+bad <- names( lab )[( length( lab )-15 ):length( lab )][seq( from=4, to=16, by=4 )]
+lab <- lab[, -which( names( lab ) %in% bad )]
+
+lab <- transmute( lab, hhid, plotnum,
+                  fam_lab_days=rowSums( lab[, 3:30], na.rm=TRUE ),
+                  hir_lab_days=rowSums( lab[, 32:ncol( lab )], na.rm=TRUE ) )
+
+lab <- transmute(lab, hhid, plotnum, lab=fam_lab_days + hir_lab_days) 
+
+# doesn't make sense to have 0 labour on a plot so set values to zero
+lab$lab <- ifelse(lab$lab %in% 0, NA, lab$lab)
 
 #######################################
 ############### ASSETS ################
@@ -153,6 +174,7 @@ areas$area <- ifelse(areas$area %in% 0, NA, areas$area)
 #######################################
 
 CS2 <- left_join(oput_maze, plot)
+CS2 <- left_join(CS2, lab)
 CS2 <- left_join(CS2, areas)
 CS2 <- left_join(CS2, implmt)
 CS2 <- left_join(CS2, geo)
@@ -200,6 +222,7 @@ CS2 <- mutate(CS2,
               N2=N^2,
               asset2=asset^2,
               area2=area^2,
+              lab2=lab^2,
               y12=1
 )
 
