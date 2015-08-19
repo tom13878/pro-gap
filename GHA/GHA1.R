@@ -2,7 +2,7 @@
 ####### GHANA data preparation ########
 #######################################  
 
-# 17/08/2015
+# 19/08/2015
 
 # for munging
 library(haven)
@@ -215,12 +215,32 @@ chem_maj_tot$crop2 <- as_factor(chem_maj_tot$crop2)
 chem_maj_tot$crop3 <- as_factor(chem_maj_tot$crop3)
 chem_maj_tot$crop4 <- as_factor(chem_maj_tot$crop4)
 
-# grab only plots where some maize was grown
-chem_maj_tot <- melt(chem_maj_tot, measure.vars=c("crop1", "crop2", "crop3", "crop4")) %>%
+# grab only chemicals applied to maize
+chem_maj_tot2 <- melt(chem_maj_tot, measure.vars=c("crop1", "crop2", "crop3", "crop4")) %>%
         rename(crop=value) %>% select(-variable)
 
 # remove any NA values for chemical type
-chem_maj_tot <- chem_maj_tot[!is.na(chem_maj_tot$type),]
+chem_maj_tot2 <- chem_maj_tot2[!is.na(chem_maj_tot2$type),]
+chem_maj_tot2 <- chem_maj_tot2[chem_maj_tot2$crop %in% "Maize",]
+
+# -------------------------------------
+# split up to look at inorganic
+# fertilizer and other chemicals
+# seperately
+# -------------------------------------
+
+# maize level - so pesticide or organic fertilizer used on maize
+chem_maj_nonfert <- chem_maj_tot2[!chem_maj_tot2$type %in% "Fertilizer (inorganic)",]
+chem_maj_nonfert <- ddply(chem_maj_nonfert, .(hhno, plotno), summarise,
+                          pest=ifelse(any(type %in% c("Herbicide", "Insecticide", "Fungicide")), 1, 0),
+                          org=ifelse(any(type %in% "Fertilizer (organic)"), 1, 0))
+
+# inorganic fertilizer - remove observations where we do not have unit recorded
+chem_maj_inorg <- chem_maj_tot2[chem_maj_tot2$type %in% "Fertilizer (inorganic)" & !is.na(chem_maj_tot2$unit),]
+
+# now need to find conversion for stupid units!
+
+
 
 # add in dummy variables for whether a
 # a particular chemical was used on a plot - try to get to 711
@@ -231,7 +251,7 @@ chem_maj_tot <- ddply(chem_maj_tot, .(hhno, plotno, crop), summarise,
                       qty=ifelse(any(type %in% "Fertilizer (inorganic)"), qty, NA),
                       prc=ifelse(any(type %in% "Fertilizer (inorganic)"), value_c, NA))
   
-# --------     
+
 # add in dummy variables for whether a
 # a particular chemical was used on a plot - try to get to 711
 chem_maj_tot <- ddply(chem_maj_tot, .(hhno, plotno, crop), summarise,
