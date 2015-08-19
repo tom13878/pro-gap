@@ -157,6 +157,8 @@ geo <- read.csv("TZA_geo.total2012.csv") %>%
         SOC=SOC_sd1_sd3, SOC2=SOC_sd1_sd5, rain=gsRainfall) %>%
   unique()
 
+# geo labels are missing from AEZ variable
+
 labels <- c("Tropic-cool/humid", "Tropic-cool/semiarid", "Tropic-cool/subhumid",
             "Tropic-warm/humid", "Tropic-warm/semiarid", "Tropic-warm/subhumid")
 geo$AEZ <- factor(geo$AEZ, labels=labels)
