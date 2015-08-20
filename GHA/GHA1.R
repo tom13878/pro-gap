@@ -2,7 +2,7 @@
 ####### GHANA data preparation ########
 #######################################  
 
-# 19/08/2015
+# 20/08/2015
 
 # for munging
 library(haven)
@@ -15,24 +15,15 @@ library(dplyr)
 fp1 <- "C:/Users/Tomas/Documents/Work/LEI/"
 setwd(fp1)
 
-# -------------------------------------
-# households were asked about agricultural
-# production and inputs for a minor and major
-# season
-# -------------------------------------
 
 #######################################
 ############### output ################
 ####################################### 
 
 # -------------------------------------
-# Both the major and minor season output
-# has been recorded in a strange way. 
-# both need to be rearranged
-# -------------------------------------
-
-# -------------------------------------
-# Major season
+# output section has to be manipulated 
+# because it has been recorded in a bad 
+# way. Not one observation per row!
 # -------------------------------------
 
 oput_maj <- read_dta("data/GHA/S4AV1.dta")
@@ -138,8 +129,12 @@ oput_maj_mze <- mutate(oput_maj_mze, qty = qty *  kilo_bar)
 
 # get rid of the unit variable and NA values for maize quantity
 oput_maj_mze <- select(oput_maj_mze, -unit, -kilo_bar)
-oput_maj_mze <- oput_maj_mze[!is.na(oput_maj_mze$qty),]
+oput_maj_mze <- oput_maj_mze[!is.na(oput_maj_mze$qty) & !oput_maj_mze$qty %in% 0,]
+oput_maj_mze$maze_prc <- oput_maj_mze$qty/oput_maj_mze$value_c
+oput_maj_mze <- select(oput_maj_mze, -value_c)
 
+rm(list=c("aux", "aux_mze", "cnvrt", "oput_maj", "oput_maj_tot", "SEC5A",
+          "unit", "variable"))
 
 #######################################
 ################ area #################
@@ -216,89 +211,49 @@ chem_maj_tot$crop3 <- as_factor(chem_maj_tot$crop3)
 chem_maj_tot$crop4 <- as_factor(chem_maj_tot$crop4)
 
 # grab only chemicals applied to maize
-chem_maj_tot2 <- melt(chem_maj_tot, measure.vars=c("crop1", "crop2", "crop3", "crop4")) %>%
+chem_maj_tot <- melt(chem_maj_tot, measure.vars=c("crop1", "crop2", "crop3", "crop4")) %>%
         rename(crop=value) %>% select(-variable)
 
 # remove any NA values for chemical type
-chem_maj_tot2 <- chem_maj_tot2[!is.na(chem_maj_tot2$type),]
-chem_maj_tot2 <- chem_maj_tot2[chem_maj_tot2$crop %in% "Maize",]
+chem_maj_tot <- chem_maj_tot[!is.na(chem_maj_tot$type),]
+chem_maj_mze <- chem_maj_tot[chem_maj_tot$crop %in% "Maize",]
 
 # -------------------------------------
-# split up to look at inorganic
-# fertilizer and other chemicals
-# seperately
+# create binary variables for whether or
+# not there is certain chemicals used
 # -------------------------------------
 
 # maize level - so pesticide or organic fertilizer used on maize
-chem_maj_nonfert <- chem_maj_tot2[!chem_maj_tot2$type %in% "Fertilizer (inorganic)",]
-chem_maj_nonfert <- ddply(chem_maj_nonfert, .(hhno, plotno), summarise,
+chem_maj_mze <- ddply(chem_maj_mze, .(hhno, plotno), summarise,
                           pest=ifelse(any(type %in% c("Herbicide", "Insecticide", "Fungicide")), 1, 0),
-                          org=ifelse(any(type %in% "Fertilizer (organic)"), 1, 0))
+                          manure=ifelse(any(type %in% "Fertilizer (organic)"), 1, 0),
+                          inorg=ifelse(any(type %in% "Fertilizer (inorganic)"), 1, 0))
 
-# inorganic fertilizer - remove observations where we do not have unit recorded
-chem_maj_inorg <- chem_maj_tot2[chem_maj_tot2$type %in% "Fertilizer (inorganic)" & !is.na(chem_maj_tot2$unit),]
+chem_maj_mze <- na.omit(chem_maj_mze)
 
-# now need to find conversion for stupid units!
-
-
-
-# add in dummy variables for whether a
-# a particular chemical was used on a plot - try to get to 711
-chem_maj_tot <- ddply(chem_maj_tot, .(hhno, plotno, crop), summarise,
-                      pest=ifelse(any(type %in% c("Herbicide", "Insecticide", "Fungicide")), 1, 0),
-                      org=ifelse(any(type %in% "Fertilizer (organic)"), 1, 0),
-                      inorg=ifelse(any(type %in% "Fertilizer (inorganic)"), 1, 0),
-                      qty=ifelse(any(type %in% "Fertilizer (inorganic)"), qty, NA),
-                      prc=ifelse(any(type %in% "Fertilizer (inorganic)"), value_c, NA))
-  
-
-# add in dummy variables for whether a
-# a particular chemical was used on a plot - try to get to 711
-chem_maj_tot <- ddply(chem_maj_tot, .(hhno, plotno, crop), summarise,
-                      pest=ifelse(any(type %in% c("herbicide", "insecticide", "fungicide")), 1, 0),
-                      manure=ifelse(any(type %in% "organic"), 1, 0),
-                      inorg=ifelse(any(type %in% "inorganic"), 1, 0),
-                      qty=ifelse(any(type %in% "inorganic"), qty, NA),
-                      prc=ifelse(any(type %in% "inorganic"), value_c, NA))
-
-chem_maj_tot$qty <- as.numeric(chem_maj_tot$qty)
-
-# -------------------------------------
-# Don't know what kind of fertilizer 
-# people use in Ghana. Go ahead and 
-# assume n=0.25 and p=010 and k=0
-# ------------------------------------
-
-chem_maj_tot$n <- 0.25
-chem_maj_tot$p <- 0.10
-
-chem_maj_tot <- mutate(chem_maj_tot, N=qty*n, P=qty*p)
-
-# -------------------------------------
-# calculate the unit producer price
-# paid for the fertilizer
-# -------------------------------------
-
+rm(list=c("chem_maj", "chem_maj_tot"))
 
 #######################################
 ################ seeds ################
 #######################################
 
-seeds <- read_dta("S4AVIII1.dta")
-seeds$id1 <- as.character(as_factor(seeds$id1))
-
-seeds1 <- select(seeds, reg=id1, id3, hhno, plotno=s4aviii1_plotno, crop=s4aviii_248ii, seed_type=s4aviii_249, srce=s4aviii_250)
-seeds2 <- select(seeds, reg=id1, id3, hhno, plotno=s4aviii1_plotno, crop=s4aviii_253ii, seed_type=s4aviii_254, srce=s4aviii_255)
-seeds3 <- select(seeds, reg=id1, id3, hhno, plotno=s4aviii1_plotno, crop=s4aviii_258ii, seed_type=s4aviii_259, srce=s4aviii_260)
-seeds4 <- select(seeds, reg=id1, id3, hhno, plotno=s4aviii1_plotno, crop=s4aviii_263ii, seed_type=s4aviii_264, srce=s4aviii_265)
-
-seeds_tot <- rbind(seeds1, seeds2, seeds3, seeds4)
-
-seeds_tot$seed_type <- as_factor(seeds_tot$seed_type)
-seeds_tot$srce <- as_factor(seeds_tot$srce)
-seeds_tot$crop <- zap_empty(seeds_tot$crop)
-
-seeds_tot <- filter(seeds_tot, !(is.na(crop)))
+# seeds <- read_dta("data/GHA/S4AVIII1.dta")
+# seeds$id1 <- as.character(as_factor(seeds$id1))
+# 
+# seeds1 <- select(seeds, hhno, plotno=s4aviii1_plotno, crop=s4aviii_248ii, seed_type=s4aviii_249, srce=s4aviii_250)
+# seeds2 <- select(seeds, hhno, plotno=s4aviii1_plotno, crop=s4aviii_253ii, seed_type=s4aviii_254, srce=s4aviii_255)
+# seeds3 <- select(seeds, hhno, plotno=s4aviii1_plotno, crop=s4aviii_258ii, seed_type=s4aviii_259, srce=s4aviii_260)
+# seeds4 <- select(seeds, hhno, plotno=s4aviii1_plotno, crop=s4aviii_263ii, seed_type=s4aviii_264, srce=s4aviii_265)
+# 
+# seeds_tot <- rbind(seeds1, seeds2, seeds3, seeds4)
+# rm(list=c("seeds", "seeds1", "seeds2", "seeds3", "seeds4"))
+# 
+# seeds_tot$seed_type <- as_factor(seeds_tot$seed_type)
+# seeds_tot$srce <- as_factor(seeds_tot$srce)
+# seeds_tot$crop <- zap_empty(seeds_tot$crop)
+# 
+# seeds_tot <- filter(seeds_tot, !(is.na(crop)))
+# seeds_mze <- seeds_tot[seeds_tot$crop %in% "MAIZE", ]
 
 
 #######################################
@@ -316,7 +271,7 @@ seeds_tot <- filter(seeds_tot, !(is.na(crop)))
 # value of all animals sold
 # -------------------------------------
 
-lvstk <- read_dta("S3AI.dta") %>% 
+lvstk <- read_dta("data/GHA/S3AI.dta") %>% 
         select(hhno, lvstk=animal_id, qty=s3ai_1, valu=s3ai_3i) %>%
         mutate(prc=valu/qty)
 
@@ -341,7 +296,7 @@ hist(lvstk$lvstk_valu[lvstk$lvstk_valu >= cut[2] & lvstk$lvstk_valu <= cut[20]],
 # value of farm equipment
 # -------------------------------------
 
-implmt <- read_dta("S3AII.dta") %>%
+implmt <- read_dta("data/GHA/S3AII.dta") %>%
         select(hhno, implmt=s3aii_0, qty=s3aii_a, valu=s3aii_c1) %>%
         filter(!is.na(implmt) & !qty %in% 0)
 
