@@ -6,6 +6,7 @@ setwd("c:/USers/tomas/Documents/work/LEI/data/TZA/TZA_2012_LSMS_v01_M_STATA_Engl
 
 library(haven)
 library(plyr)
+detach(package:dplyr)
 library(dplyr)
 
 options(scipen=999)
