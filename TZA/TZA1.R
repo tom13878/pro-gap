@@ -7,6 +7,7 @@ setwd("c:/USers/tomas/Documents/work/LEI")
 library(haven)
 library(stringr)
 library(plyr)
+detach(package:dplyr)
 library(dplyr)
 
 options(scipen=999)
