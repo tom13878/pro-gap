@@ -309,6 +309,39 @@ implmt <- filter(implmt, !is.na(valu)) %>%
         group_by(hhno) %>% 
         summarise(implmt_valu=sum(valu))
 
+
+#######################################
+############### LABOUR ################
+#######################################
+
+lab_val1 <- read_dta("data/GHA/S4AIX1.dta") %>%
+  select(-id1, -id2, -hhno, s4aix1_plotno)
+lab_val1[is.na(lab_val1)] <- 0
+lab_val1 <- rowSums(lab_val1)
+lab1 <- read_dta("data/GHA/S4AIX1.dta") %>%
+  select(hhno, plotno=s4aix1_plotno) %>% cbind(lab_val1)
+
+lab_val2 <- read_dta("data/GHA/S4AIX2.dta") %>%
+  select(-id2, -id2, -hhno, s4aix2_plotno)
+lab_val2[is.na(lab_val2)] <- 0
+lab_val2 <- rowSums(lab_val2)
+lab2 <- read_dta("data/GHA/S4AIX2.dta") %>%
+  select(hhno, plotno=s4aix2_plotno) %>% cbind(lab_val2)
+
+lab_val3 <- read_dta("data/GHA/S4AIX3.dta") %>%
+  select(-id3, -id2, -hhno, s4aix3_plotno)
+lab_val3[is.na(lab_val3)] <- 0
+lab_val3 <- rowSums(lab_val3)
+lab3 <- read_dta("data/GHA/S4AIX3.dta") %>%
+  select(hhno, plotno=s4aix3_plotno) %>% cbind(lab_val3)
+
+lab_val4 <- read_dta("data/GHA/S4AIX4.dta") %>%
+  select(-id4, -id2, -hhno, s4aix4_plotno)
+lab_val4[is.na(lab_val4)] <- 0
+lab_val4 <- rowSums(lab_val4)
+lab4 <- read_dta("data/GHA/S4AIX4.dta") %>%
+  select(hhno, plotno=s4aix4_plotno) %>% cbind(lab_val4)
+
 #######################################
 ########### CROSS SECTION #############
 #######################################
