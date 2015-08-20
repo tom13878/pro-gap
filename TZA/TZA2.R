@@ -215,25 +215,6 @@ CS2 <- mutate(CS2,
               asset=value/area_tot
 )
 
-#######################################
-############## CLEANING ###############
-#######################################
-
-# remove any Nitrogen values greater than 100
-# and any yields greater than 6000
-# and any assets greater than 50 million
-CS2 <- CS2[!CS2$N > 100, ]
-CS2 <- CS2[!CS2$yld > 6000, ]
-CS2 <- CS2[!CS2$asset > 50000000, ]
-
-# winsor the nitrogen and maize prices
-source("c:/USers/tomas/Documents/work/LEI/winsor5.R")
-
-CS2$maize_prc <- winsor5(CS2$maize_prc, 5)
-
-CS2$WPn <- ifelse(CS2$WPn %in% 0, NA, CS2$WPn)
-CS2$WPn <- winsor5(CS2$WPn, 5)
-CS2$WPn <- ifelse(is.na(CS2$WPn), 0, CS2$WPn)
 
 # remove zanzibar zones
 CS2 <- CS2[!CS2$zone %in% "Zanzibar",]
