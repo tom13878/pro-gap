@@ -3,6 +3,7 @@
 #######################################
 
 library(haven)
+detach(package:dplyr)
 library(dplyr)
 
 # read in the data
@@ -19,7 +20,50 @@ CS2$zone <- as_factor(CS2$zone)
 CS1$AEZ <- as_factor(CS1$AEZ)
 CS2$AEZ <- as_factor(CS2$AEZ)
 
-# form the balanced panel
+#######################################
+############## CLEANING ###############
+#######################################
+
+# remove any Nitrogen values greater than 100
+# and any yields greater than 6000
+# and any assets greater than 50 million
+CS1 <- CS1[!CS1$N > 100, ]
+CS1 <- CS1[!CS1$yld > 6000, ]
+CS1 <- CS1[!CS1$asset > 50000000, ]
+
+# winsor the nitrogen and maize prices
+source("c:/USers/tomas/Documents/work/LEI/winsor5.R")
+
+CS1$maize_prc <- winsor5(CS1$maize_prc, 5)
+
+CS1$WPn <- ifelse(CS1$WPn %in% 0, NA, CS1$WPn)
+CS1$WPn  <- winsor5(CS1$WPn, 5)
+CS1$WPn <- ifelse(is.na(CS1$WPn), 0, CS1$WPn)
+
+
+#######################################
+############## CLEANING2 ###############
+#######################################
+
+# remove any Nitrogen values greater than 100
+# and any yields greater than 6000
+# and any assets greater than 50 million
+CS2 <- CS2[!CS2$N > 100, ]
+CS2 <- CS2[!CS2$yld > 6000, ]
+CS2 <- CS2[!CS2$asset > 50000000, ]
+
+# winsor the nitrogen and maize prices
+source("c:/USers/tomas/Documents/work/LEI/pro-gap/winsor.R")
+
+CS2$maize_prc <- winsor2(CS2$maize_prc, 5)
+
+CS2$WPn <- ifelse(CS2$WPn %in% 0, NA, CS2$WPn)
+CS2$WPn <- winsor2(CS2$WPn, 5)
+CS2$WPn <- ifelse(is.na(CS2$WPn), 0, CS2$WPn)
+
+#######################################
+############ BALANCE PANEL ############
+#######################################
 
 CS1.2 <- CS1[CS1$hhid %in% CS2$hhid,]
 CS2.2 <- CS2[CS2$hhid %in% CS1$hhid,]
@@ -28,7 +72,10 @@ panel <- rbind(CS1.2, CS2.2)
 
 rm(list=c("CS1", "CS2", "CS1.2", "CS2.2"))
 
-# Add in some new average variables for the CRE
+#######################################
+########## ADD CRE AVERAGES ###########
+#######################################
+
 panel <- ddply(panel, .(hhid), transform,
                N_bar=mean(N, na.rm=TRUE),
                P_bar=mean(P, na.rm=TRUE),
