@@ -3,6 +3,7 @@
 #######################################  
 
 # 21/08/2015
+options(scipen=999)
 
 # for munging
 library(haven)
@@ -409,4 +410,24 @@ CS <- select(CS, -plotno, -qty, -lab_val1, -lab_val2, -lab_val3,
 # remove everything but the cross section
 rm(list=ls()[!ls() %in% "CS"])
 
+# make some restriction on yld
+CS <- CS[!CS$yld > 6000, ]
 
+# run a test regression
+lm1 <- lm(yld ~ inorg + pest + manure + crop2 + crop3 + crop4 + crop5 + irrig +
+     asset + asset2 + lab + lab2 + area + area2, data=CS)
+
+summary(lm1)
+
+# read in region variables
+region <- read_dta("data/GHA/S4AV1.dta") %>%
+  select(hhno, reg=id1)
+region$reg <- as_factor(region$reg)
+region$hhno <- as.character(region$hhno)
+
+CS <- left_join(CS, region)
+
+lm2 <- lm(yld ~ reg:inorg  + pest + manure + crop2 + crop3 + crop4 + crop5 + irrig +
+            asset + asset2 + lab + lab2 + area + area2, data=CS)
+
+summary(lm2)
