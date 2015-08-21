@@ -2,18 +2,16 @@
 ####### GHANA data preparation ########
 #######################################  
 
-# 20/08/2015
+# 21/08/2015
 
 # for munging
 library(haven)
 library(reshape2)
 library(plyr)
-# library(Hmisc)
 detach(package:dplyr)
 library(dplyr)
 
-fp1 <- "C:/Users/Tomas/Documents/Work/LEI/"
-setwd(fp1)
+setwd("C:/Users/Tomas/Documents/Work/LEI/")
 
 
 #######################################
@@ -37,11 +35,11 @@ oput_maj$s4v_a78v <- as_factor(oput_maj$s4v_a78v)
 
 # need to select out the data seperately and rbind everything together
 # first crop
-crop_maj_1 <- select(oput_maj, reg=id1, id3, hhno, plot_no=s4av1_plotno, s4v_a78i, s4v_a80i:s4v_a87 )
-crop_maj_2 <- select(oput_maj, reg=id1, id3, hhno, plot_no=s4av1_plotno, s4v_a78ii, s4v_a88i:s4v_a95)
-crop_maj_3 <- select(oput_maj, reg=id1, id3, hhno, plot_no=s4av1_plotno, s4v_a78iii, s4v_a96i:s4v_a103)
-crop_maj_4 <- select(oput_maj, reg=id1, id3, hhno, plot_no=s4av1_plotno, s4v_a78iv, s4v_a104i:s4v_a111)
-crop_maj_5 <- select(oput_maj, reg=id1, id3, hhno, plot_no=s4av1_plotno, s4v_a78v, s4v_a112i:s4v_a119)
+crop_maj_1 <- select(oput_maj, reg=id1, id3, hhno, plotno=s4av1_plotno, s4v_a78i, s4v_a80i:s4v_a87 )
+crop_maj_2 <- select(oput_maj, reg=id1, id3, hhno, plotno=s4av1_plotno, s4v_a78ii, s4v_a88i:s4v_a95)
+crop_maj_3 <- select(oput_maj, reg=id1, id3, hhno, plotno=s4av1_plotno, s4v_a78iii, s4v_a96i:s4v_a103)
+crop_maj_4 <- select(oput_maj, reg=id1, id3, hhno, plotno=s4av1_plotno, s4v_a78iv, s4v_a104i:s4v_a111)
+crop_maj_5 <- select(oput_maj, reg=id1, id3, hhno, plotno=s4av1_plotno, s4v_a78v, s4v_a112i:s4v_a119)
 
 # drop any NA values which are only there because of weird format
 crop_maj_1 <- crop_maj_1[!is.na(crop_maj_1$s4v_a78i),]
@@ -58,7 +56,7 @@ crop_maj_5 <- crop_maj_5[!is.na(crop_maj_5$s4v_a78v),]
 
 # now need to change the names so they are all the same
 names(crop_maj_1) <- names(crop_maj_2) <- names(crop_maj_3) <- names(crop_maj_4) <- names(crop_maj_5) <-
-        c("reg", "id3", "hhno", "plot_no", "crop", "crop_id", "type", "quantity", "unit", "value_c",
+        c("reg", "id3", "hhno", "plotno", "crop", "crop_id", "type", "quantity", "unit", "value_c",
           "value_p", "revenue_c", "revenue_p", "left_over", "left_over_value_c",
           "left_over_value_p", "disease", "percent_lost")
 
@@ -75,13 +73,21 @@ oput_maj_tot$disease <- as_factor(oput_maj_tot$disease)
 # add a variable for the number of crops on a plot
 # and whether or not a legume was grown on that plot
 
-oput_maj_tot <- ddply(oput_maj_tot, .(hhno, plot_no), transform,
+oput_maj_tot <- ddply(oput_maj_tot, .(hhno, plotno), transform,
                       crop_count=length(crop[!is.na(crop)]),
                       legume=ifelse(any(crop %in% "Beans/Peas"), 1, 0))
 
 # select only maize oput and chosen variables
 oput_maj_mze <- filter(oput_maj_tot, crop %in% "Maize") %>%
-        select(hhno, plot_no, qty=quantity, unit, value_c, crop_count, legume)
+        select(hhno, plotno, qty=quantity, unit, value_c, crop_count, legume)
+
+# make cropcount into a binary variable
+oput_maj_mze$crop2 <- ifelse(oput_maj_mze$crop_count %in% 2, 1, 0)
+oput_maj_mze$crop3 <- ifelse(oput_maj_mze$crop_count %in% 3, 1, 0)
+oput_maj_mze$crop4 <- ifelse(oput_maj_mze$crop_count %in% 4, 1, 0)
+oput_maj_mze$crop5 <- ifelse(oput_maj_mze$crop_count %in% 5, 1, 0)
+
+rm(list=c("oput_maj_tot", "oput_maj"))
 
 
 # -------------------------------------
@@ -133,8 +139,9 @@ oput_maj_mze <- oput_maj_mze[!is.na(oput_maj_mze$qty) & !oput_maj_mze$qty %in% 0
 oput_maj_mze$maze_prc <- oput_maj_mze$qty/oput_maj_mze$value_c
 oput_maj_mze <- select(oput_maj_mze, -value_c)
 
-rm(list=c("aux", "aux_mze", "cnvrt", "oput_maj", "oput_maj_tot", "SEC5A",
-          "unit", "variable"))
+oput_maj_mze$hhno <- as.character(oput_maj_mze$hhno)
+
+rm(list=c("aux", "aux_mze", "cnvrt", "SEC5A", "unit", "variable"))
 
 #######################################
 ################ area #################
@@ -145,7 +152,7 @@ area <- read_dta("data/GHA/S4AII.dta")
 area <- select(area, reg=id1, id2, hhno, plotno=plot_no,
                     size=s4aii_a10, unit=s4aii_a11, test_area=s4aii_a12,
                     test_compare=s4aii_a13, test_in=s4aii_a14, in_test=s4aii_a15a,
-                    area_ha)
+                    area=area_ha)
 
 # use as_factor to get labels. 
 area$reg <- as.character(as_factor(area$reg))
@@ -154,8 +161,11 @@ area$test_area <- as_factor(area$test_area)
 area$test_compare <- as_factor(area$test_compare)
 
 # for now we just need the area in hectacres
-area <- select(area, reg, hhno, plotno,  area_ha)
+area <- select(area, hhno, plotno,  area)
+area <- ddply(area, .(hhno), transform,
+              area_tot=sum(area, na.rm=TRUE))
 
+area$hhno <- as.character(area$hhno)
 
 #######################################
 ############## CHEMICALS ##############
@@ -231,29 +241,9 @@ chem_maj_mze <- ddply(chem_maj_mze, .(hhno, plotno), summarise,
 
 chem_maj_mze <- na.omit(chem_maj_mze)
 
+chem_maj_mze$hhno <- as.character(chem_maj_mze$hhno)
+
 rm(list=c("chem_maj", "chem_maj_tot"))
-
-#######################################
-################ seeds ################
-#######################################
-
-# seeds <- read_dta("data/GHA/S4AVIII1.dta")
-# seeds$id1 <- as.character(as_factor(seeds$id1))
-# 
-# seeds1 <- select(seeds, hhno, plotno=s4aviii1_plotno, crop=s4aviii_248ii, seed_type=s4aviii_249, srce=s4aviii_250)
-# seeds2 <- select(seeds, hhno, plotno=s4aviii1_plotno, crop=s4aviii_253ii, seed_type=s4aviii_254, srce=s4aviii_255)
-# seeds3 <- select(seeds, hhno, plotno=s4aviii1_plotno, crop=s4aviii_258ii, seed_type=s4aviii_259, srce=s4aviii_260)
-# seeds4 <- select(seeds, hhno, plotno=s4aviii1_plotno, crop=s4aviii_263ii, seed_type=s4aviii_264, srce=s4aviii_265)
-# 
-# seeds_tot <- rbind(seeds1, seeds2, seeds3, seeds4)
-# rm(list=c("seeds", "seeds1", "seeds2", "seeds3", "seeds4"))
-# 
-# seeds_tot$seed_type <- as_factor(seeds_tot$seed_type)
-# seeds_tot$srce <- as_factor(seeds_tot$srce)
-# seeds_tot$crop <- zap_empty(seeds_tot$crop)
-# 
-# seeds_tot <- filter(seeds_tot, !(is.na(crop)))
-# seeds_mze <- seeds_tot[seeds_tot$crop %in% "MAIZE", ]
 
 
 #######################################
@@ -288,9 +278,7 @@ lvstk <- ddply(lvstk, .(lvstk), transform,
 lvstk <- group_by(lvstk, hhno) %>%
         summarise(lvstk_valu=sum(valu))
 
-cut <- quantile(lvstk$lvstk_valu, probs=seq(0,1, 0.05))
-hist(lvstk$lvstk_valu[lvstk$lvstk_valu >= cut[2] & lvstk$lvstk_valu <= cut[20]],
-     col="red", breaks=30, main="household wealth (lvstk)", xlab="Cedis")
+lvstk$hhno <- as.character(lvstk$hhno)
 
 # -------------------------------------
 # value of farm equipment
@@ -309,6 +297,7 @@ implmt <- filter(implmt, !is.na(valu)) %>%
         group_by(hhno) %>% 
         summarise(implmt_valu=sum(valu))
 
+implmt$hhno <- as.character(implmt$hhno)
 
 #######################################
 ############### LABOUR ################
@@ -342,47 +331,82 @@ lab_val4 <- rowSums(lab_val4)
 lab4 <- read_dta("data/GHA/S4AIX4.dta") %>%
   select(hhno, plotno=s4aix4_plotno) %>% cbind(lab_val4)
 
+rm(list=c("lab_val1", "lab_val2", "lab_val3", "lab_val4"))
+
+lab1$hhno <- as.character(lab1$hhno)
+lab2$hhno <- as.character(lab2$hhno)
+lab3$hhno <- as.character(lab3$hhno)
+lab4$hhno <- as.character(lab4$hhno)
+
+#######################################
+############ FALLOW/IRRIG #############
+#######################################
+
+plot <- read_dta("data/GHA/S4AIII.dta") %>%
+  select(hhno, plotno=s4aiii_plotno, fallowB=s4aiii_a18a,
+         fallowF=s4aiii_a19a, irrig=s4aiii_a26)
+
+plot$fallowF <- as.integer(plot$fallowF)
+plot$fallowB <- as.integer(plot$fallowB)
+plot$irrig <- ifelse(plot$irrig %in% 1, 1, 0)
+
+plot$hhno <- as.character(plot$hhno)
+
 #######################################
 ########### CROSS SECTION #############
 #######################################
-chem_maj_tot <- select(chem_maj_tot, -inorg, -qty, -n, -p ) %>%
-        filter(crop %in% "Maize")
-names(oput_maj_mze)[2] <- "plotno"        
 
-CS <- left_join(oput_maj_mze, chem_maj_tot)
-
-CS$hhno <- as.character(CS$hhno)
-area$hhno <- as.character(area$hhno)
-implmt$hhno <- as.character(implmt$hhno)
-lvstk$hhno <- as.character(lvstk$hhno)
-
+# at the plot level
+CS <- left_join(oput_maj_mze, chem_maj_mze)
 CS <- left_join(CS, area)
+CS <- left_join(CS, plot)
+CS <- left_join(CS, lab1)
+CS <- left_join(CS, lab2)
+CS <- left_join(CS, lab3)
+CS <- left_join(CS, lab4)
+
+# at the household level
 CS <- left_join(CS, implmt)
 CS <- left_join(CS, lvstk)
 
-# make some NAs into not NAs
-CS$pest <- as.integer(ifelse(is.na(CS$pest), 0, CS$pest) )
-CS$org <- as.integer(ifelse(is.na(CS$org), 0, CS$org) )
+# remove any rows thathav an NA for area
+CS <- CS[!is.na(CS$area),]
 
-CS$implmt_valu <- as.integer(ifelse(is.na(CS$implmt_valu), 0, CS$implmt_valu) )
-CS$lvstk_valu <- as.integer(ifelse(is.na(CS$lvstk_valu), 0, CS$lvstk_valu) )
+#######################################
+#######################################
+#######################################
 
-CS$asset <- CS$implmt_valu + CS$lvstk_valu 
+# set NA values in selected variables to zero
+CS$pest <- ifelse(is.na(CS$pest), 0, CS$pest)
+CS$manure <- ifelse(is.na(CS$manure), 0, CS$manure)
+CS$inorg <- ifelse(is.na(CS$inorg), 0, CS$inorg)
+CS$implmt_valu <- ifelse(is.na(CS$implmt_valu), 0, CS$implmt_valu)
+CS$lvstk_valu <- ifelse(is.na(CS$lvstk_valu), 0, CS$lvstk_valu)
 
-CStst <- mutate(CS,
-             yld=qty/area_ha,
-             N=N/area_ha,
-             P=P/area_ha,
-             asset2=asset^2,
-             area2=area_ha^2,
-             N2= N^2
+CS <- mutate(CS,
+  lab = lab_val1 + lab_val2 + lab_val3 + lab_val4,
+  asset = implmt_valu +lvstk_valu
 )
 
-CStst2 <- select(CStst, hhno, yld, N, N2, P, area_ha, area2, org, legume, crop_count,
-             pest, asset, asset2)
+# calculate total 
 
-# try a cheekey regression
-summary(lm(yld ~ N + N2 + N:P + area_ha + area2 + org  + asset +
-                   asset2 + legume + crop_count  + pest ,
-           data=CStst2))
+CS <- mutate(CS,
+             yld=qty/area,
+             asset=asset/area_tot,
+             area2=area^2
+)
+
+CS <- mutate(CS,
+  area2=area^2,
+  asset2 = asset^2,
+  lab2 = lab^2
+)
+
+# select only the necessary variables
+CS <- select(CS, -plotno, -qty, -lab_val1, -lab_val2, -lab_val3,
+             -lab_val4, -implmt_valu, -lvstk_valu)
+
+# remove everything but the cross section
+rm(list=ls()[!ls() %in% "CS"])
+
 
