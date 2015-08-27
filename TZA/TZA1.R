@@ -2,7 +2,7 @@
 ########## TANZANIA 2010-11 ###########
 #######################################
 
-setwd("c:/USers/tomas/Documents/work/LEI")
+setwd("c:/Users/tomas/Documents/work/LEI")
 
 library(haven)
 library(stringr)
@@ -175,7 +175,7 @@ areas$area <- ifelse(areas$area %in% 0, NA, areas$area)
 ############### ASSETS ################
 #######################################
 
-implmt <- read_dta("c:/USers/tomas/Documents/work/LEI/data/TZA/TZNPS2AGRDTA/AG_SEC11.dta") %>%
+implmt <- read_dta("c:/Users/tomas/Documents/work/LEI/data/TZA/TZNPS2AGRDTA/AG_SEC11.dta") %>%
   select(y2_hhid, itemcode, qty=ag11_01, valu=ag11_02) %>%
   filter(!qty %in% 0, !is.na(qty), !valu %in% 0, !is.na(valu)) %>%
   transmute(y2_hhid, valu=qty*valu) %>%
