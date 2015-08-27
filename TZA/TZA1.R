@@ -30,15 +30,6 @@ oput <- ddply(oput, .(y2_hhid, plotnum), transform,
               crop_count=length(unique(zaocode[!is.na(zaocode)])),
               legume=ifelse(any(zaocode %in% legumes), 1, 0))
 
-oput <- oput[!oput$crop_count > 7,]
-
-oput$crop2 <- ifelse(oput$crop_count %in% 2, 1, 0)
-oput$crop3 <- ifelse(oput$crop_count %in% 3, 1, 0)
-oput$crop4 <- ifelse(oput$crop_count %in% 4, 1, 0)
-oput$crop5 <- ifelse(oput$crop_count %in% 5, 1, 0)
-oput$crop6 <- ifelse(oput$crop_count %in% 6, 1, 0)
-oput$crop7 <- ifelse(oput$crop_count %in% 7, 1, 0)
-
 oput_maze <- oput[ oput$zaocode %in% 11 & ! is.na(oput$qty) & !oput$qty %in% 0, ]
 oput_maze$maize_prc <- oput_maze$valu/oput_maze$qty
 oput_maze <- select(oput_maze, -zaocode, -valu)
