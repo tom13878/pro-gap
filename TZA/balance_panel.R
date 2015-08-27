@@ -72,9 +72,11 @@ CS2$crop7 <- ifelse(CS2$crop_count %in% 7, 1, 0)
 # remove any Nitrogen values greater than 100
 # and any yields greater than 6000
 # and any assets greater than 50 million
+# in this case no assets are greater than
+# 50 million. Watch out for NAs in comparisons
 CS2 <- CS2[!CS2$N > 100, ]
 CS2 <- CS2[!CS2$yld > 6000, ]
-CS2 <- CS2[!CS2$asset > 50000000, ]
+CS2.1 <- CS2[is.na(CS2$asset) | !CS2$asset > 50000000, ]
 
 # winsor the nitrogen and maize prices
 source("c:/USers/tomas/Documents/work/LEI/pro-gap/winsor.R")
