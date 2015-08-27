@@ -24,6 +24,19 @@ CS2$AEZ <- as_factor(CS2$AEZ)
 ############## CLEANING ###############
 #######################################
 
+# remove plots which have more than 7 crops on them
+# add dummy variables for number of crops. In this case
+# seven is actually the maximum number of crops
+
+CS1 <- CS1[!CS1$crop_count > 7,]
+
+CS1$crop2 <- ifelse(CS1$crop_count %in% 2, 1, 0)
+CS1$crop3 <- ifelse(CS1$crop_count %in% 3, 1, 0)
+CS1$crop4 <- ifelse(CS1$crop_count %in% 4, 1, 0)
+CS1$crop5 <- ifelse(CS1$crop_count %in% 5, 1, 0)
+CS1$crop6 <- ifelse(CS1$crop_count %in% 6, 1, 0)
+CS1$crop7 <- ifelse(CS1$crop_count %in% 7, 1, 0)
+
 # remove any Nitrogen values greater than 100
 # and any yields greater than 6000
 # and any assets greater than 50 million
@@ -34,16 +47,27 @@ CS1 <- CS1[!CS1$asset > 50000000, ]
 # winsor the nitrogen and maize prices
 source("c:/USers/tomas/Documents/work/LEI/winsor5.R")
 
-CS1$maize_prc <- winsor5(CS1$maize_prc, 5)
+CS1$maize_prc <- winsor2(CS1$maize_prc, 5)
 
 CS1$WPn <- ifelse(CS1$WPn %in% 0, NA, CS1$WPn)
-CS1$WPn  <- winsor5(CS1$WPn, 5)
+CS1$WPn  <- winsor2(CS1$WPn, 5)
 CS1$WPn <- ifelse(is.na(CS1$WPn), 0, CS1$WPn)
 
 
 #######################################
-############## CLEANING2 ###############
+############## CLEANING2 ##############
 #######################################
+
+# remove plots which have more than 7 crops on them
+# add dummy variables for number of crops
+CS2 <- CS2[!CS2$crop_count > 7,]
+
+CS2$crop2 <- ifelse(CS2$crop_count %in% 2, 1, 0)
+CS2$crop3 <- ifelse(CS2$crop_count %in% 3, 1, 0)
+CS2$crop4 <- ifelse(CS2$crop_count %in% 4, 1, 0)
+CS2$crop5 <- ifelse(CS2$crop_count %in% 5, 1, 0)
+CS2$crop6 <- ifelse(CS2$crop_count %in% 6, 1, 0)
+CS2$crop7 <- ifelse(CS2$crop_count %in% 7, 1, 0)
 
 # remove any Nitrogen values greater than 100
 # and any yields greater than 6000
