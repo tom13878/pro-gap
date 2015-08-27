@@ -28,7 +28,7 @@ oput <- ddply(oput, .(hhid, plotnum), transform,
               crop_count=length(unique(zaocode[!is.na(zaocode)])),
               legume=ifelse(any(zaocode %in% legumes), 1, 0))
 
-oput_maze <- oput[ oput$zaocode %in% 11 & ! is.na(oput$qty) & !oput$qty %in% 0, ]
+oput_maze <- oput[ oput$zaocode %in% 11 & !is.na(oput$qty) & !oput$qty %in% 0, ]
 oput_maze$maize_prc <- oput_maze$valu/oput_maze$qty
 oput_maze <- select(oput_maze, -zaocode, -valu)
 
@@ -223,5 +223,6 @@ CS2 <- mutate(CS2,
               lab2=lab^2,
               y12=1
 )
+
 
 write_dta(CS2, "C:/Users/Tomas/Documents/Work/LEI/TZA12_data.dta")
