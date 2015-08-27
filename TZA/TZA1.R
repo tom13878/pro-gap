@@ -129,7 +129,8 @@ bad <- grep( "ag3a_70_id", names( lab ) )
 lab <- lab[, -bad]
 lab <- select( lab, -ag3a_71 )
 
-# remove the wage paid in shillings to hired labour - might want this back later
+# remove variables that refer to wage paid for hired labour
+# this could be added later to consider input costs
 bad <- names( lab )[( length( lab )-15 ):length( lab )][seq( from=4, to=16, by=4 )]
 lab <- lab[, -which( names( lab ) %in% bad )]
 
