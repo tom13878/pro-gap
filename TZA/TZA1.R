@@ -59,6 +59,8 @@ plot$manure <- ifelse(plot$manure %in% 1, 1, 0)
 plot$pest <- ifelse(plot$pest %in% 1, 1, 0)
 
 # two questions on fallow - make sure they match up correctly
+# fallow value of 98 means subject did not know how long plot
+# was left fallow
 plot$fallow_year <- ifelse(plot$fallow_year %in% 98, NA, plot$fallow_year)
 plot$fallow <- ifelse(plot$fallow_year %in% 0, 0, plot$fallow )
 plot$fallow <- ifelse(is.na(plot$fallow_year), NA, plot$fallow)

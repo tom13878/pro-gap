@@ -57,6 +57,8 @@ plot$pest <- ifelse(plot$pest %in% 1, 1, 0)
 plot$maze <- ifelse(plot$maze %in% 11, 1, 0)
 
 # two questions on fallow - make sure they match up correctly
+# fallow value of 98 means subject did not know how long plot
+# was left fallow
 plot$fallow_year <- ifelse(plot$fallow_year %in% 98, NA, plot$fallow_year)
 plot$fallow <- ifelse(plot$fallow_year %in% 0, 0, plot$fallow )
 plot$fallow <- ifelse(is.na(plot$fallow_year), NA, plot$fallow)
@@ -130,7 +132,7 @@ lab <- transmute( lab, hhid, plotnum,
                   fam_lab_days=rowSums( lab[, 3:30], na.rm=TRUE ),
                   hir_lab_days=rowSums( lab[, 32:ncol( lab )], na.rm=TRUE ) )
 
-lab <- transmute(lab, hhid, plotnum, lab=fam_lab_days + hir_lab_days) 
+lab <- transmute(lab, hhid, plotnum, lab=fam_lab_days + hir_lab_days)
 
 # doesn't make sense to have 0 labour on a plot so set values to zero
 lab$lab <- ifelse(lab$lab %in% 0, NA, lab$lab)
