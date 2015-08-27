@@ -121,7 +121,7 @@ rm(list=c("fert1", "fert2", "fert"))
 
 lab <- read_dta( "data/TZA/TZNPS2AGRDTA/AG_SEC3A.dta") %>%
   select( y2_hhid, plotnum, ag3a_70_id1:ag3a_72_9 )
-                  
+
 # remove houshold labour IDs and question ag3a_71 which we don't need
 bad <- grep( "ag3a_70_id", names( lab ) )
 lab <- lab[, -bad]
@@ -136,7 +136,7 @@ lab <- transmute( lab, y2_hhid, plotnum,
                   fam_lab_days=rowSums( lab[, 3:26], na.rm=TRUE ),
                   hir_lab_days=rowSums( lab[, 27:ncol( lab )], na.rm=TRUE ) )
 
-lab <- transmute(lab, y2_hhid, plotnum, lab=fam_lab_days + hir_lab_days) 
+lab <- transmute(lab, y2_hhid, plotnum, lab=fam_lab_days + hir_lab_days)
 
 # doesn't make sense to have 0 labour on a plot so set values to zero
 lab$lab <- ifelse(lab$lab %in% 0, NA, lab$lab)
@@ -238,7 +238,8 @@ CS1 <- CS1[!CS1$zone %in% "Zanzibar",]
 # -------------------------------------
 # Inflate 2010 prices to 2012 prices
 # using inflation rate for 2010 and 2011
-# from world bank
+# from world bank:
+# http://data.worldbank.org/indicator/FP.CPI.TOTL.ZG/countries/TZ?display=graph
 # -------------------------------------
 
 CS1$asset <- CS1$asset*(1+0.062)*(1+0.12)
