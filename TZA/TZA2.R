@@ -86,6 +86,14 @@ fert1 <- left_join(fert1, comp)
 fert2 <- left_join(fert2, comp)
 fert <- rbind(fert1, fert2)
 
+# ------------------------------
+# make dummy variable equal to 1
+# if household received a voucher
+# ------------------------------
+
+voucher <- group_by(fert, hhid) %>%
+    summarise(vouch=ifelse(any(vouch %in% 1), 1, 0))
+
 rm(list=c("comp", "typ", "n", "p", "k", "fert1", "fert2"))
 
 fert <- mutate(fert,
@@ -202,6 +210,7 @@ CS2 <- left_join(CS2, areas)
 CS2 <- left_join(CS2, implmt)
 CS2 <- left_join(CS2, geo)
 CS2 <- left_join(CS2, rural)
+CS2 <- left_join(CS2, voucher)
 
 rm(list=ls()[!ls() %in% "CS2"])
 

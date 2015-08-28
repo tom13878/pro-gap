@@ -91,6 +91,14 @@ rm(list=c("comp", "typ", "n", "p", "k"))
 
 fert <- rbind(fert1, fert2)
 
+# ------------------------------
+# make dummy variable equal to 1
+# if household received a voucher
+# ------------------------------
+
+voucher <- group_by(fert, y2_hhid) %>%
+    summarise(vouch=ifelse(any(vouch %in% 1), 1, 0))
+
 fert <- mutate(fert,
                Vfert=valu/qty,
                Qn=qty*n,
@@ -101,8 +109,7 @@ fert$Pn <- fert$Vfert/fert$n
 fert <- group_by(fert, y2_hhid, plotnum) %>%
   summarise(N=sum(Qn, na.rm=TRUE),
             P=sum(Qp, na.rm=TRUE),
-            WPn=sum((Qn/N)*Pn, na.rm=TRUE),
-            vouch=ifelse(any(vouch %in% 1), 1, 0))
+            WPn=sum((Qn/N)*Pn, na.rm=TRUE))
 
 # join back with the rest of the data
 plot <- left_join(plot, fert)
@@ -202,6 +209,7 @@ CS1 <- left_join(CS1, areas)
 CS1 <- left_join(CS1, implmt)
 CS1 <- left_join(CS1, geo)
 CS1 <- left_join(CS1, rural)
+CS1 <- left_join(CS1, voucher)
 
 # -------------------------------------
 # change the y2_hhid to the y3_hhid
