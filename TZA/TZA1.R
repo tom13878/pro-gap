@@ -136,6 +136,15 @@ lab <- transmute(lab, y2_hhid, plotnum, lab=fam_lab_days + hir_lab_days)
 lab$lab <- ifelse(lab$lab %in% 0, NA, lab$lab)
 
 #######################################
+############ rural/urban ##############
+#######################################
+
+rural <- read_dta("data/TZA/HH_SEC_A.dta") %>%
+    select(y2_hhid, rural=y2_rural)
+
+rural$rural <- ifelse(rural$rural %in% 1, 1, 0)
+
+#######################################
 ############### GEO ###################
 #######################################
 
@@ -191,6 +200,7 @@ CS1 <- left_join(CS1, lab)
 CS1 <- left_join(CS1, areas)
 CS1 <- left_join(CS1, implmt)
 CS1 <- left_join(CS1, geo)
+CS1 <- left_join(CS1, rural)
 
 # -------------------------------------
 # change the y2_hhid to the y3_hhid
