@@ -137,8 +137,16 @@ implmt <- read_dta("AG_SEC_11.dta") %>%
   filter(!qty %in% 0, !is.na(qty), !valu %in% 0, !is.na(valu)) %>%
   transmute(hhid, valu=qty*valu) %>%
   group_by(hhid) %>%
-  summarise(value=sum(valu))
+      summarise(value=sum(valu))
 
+#######################################
+############ rural/urban ##############
+#######################################
+
+rural <- read_dta("HH_SEC_A.dta") %>%
+    select(hhid=y3_hhid, rural=y3_rural)
+
+rural$rural <- ifelse(rural$rural %in% 1, 1, 0)
 
 #######################################
 ############### GEO ###################
@@ -183,6 +191,7 @@ areas$hhid <- as.character(areas$hhid)
 areas$plotnum <- as.character(areas$plotnum)
 areas$area <- ifelse(areas$area %in% 0, NA, areas$area)
 
+
 #######################################
 ########### CROSS SECTION #############
 #######################################
@@ -192,6 +201,7 @@ CS2 <- left_join(CS2, lab)
 CS2 <- left_join(CS2, areas)
 CS2 <- left_join(CS2, implmt)
 CS2 <- left_join(CS2, geo)
+CS2 <- left_join(CS2, rural)
 
 rm(list=ls()[!ls() %in% "CS2"])
 
