@@ -101,7 +101,8 @@ fert$Pn <- fert$Vfert/fert$n
 fert <- group_by(fert, y2_hhid, plotnum) %>%
   summarise(N=sum(Qn, na.rm=TRUE),
             P=sum(Qp, na.rm=TRUE),
-            WPn=sum((Qn/N)*Pn, na.rm=TRUE))
+            WPn=sum((Qn/N)*Pn, na.rm=TRUE),
+            vouch=ifelse(any(vouch %in% 1), 1, 0))
 
 # join back with the rest of the data
 plot <- left_join(plot, fert)
