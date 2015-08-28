@@ -113,3 +113,4 @@ panel <- ddply(panel, .(hhid), transform,
                legume_bar=mean(legume, na.rm = TRUE),
                crop_count_bar=mean(crop_count, na.rm=TRUE))
 
+write_dta(panel, "C:/Users/Tomas/Documents/work/LEI/panel.dta")
