@@ -4,6 +4,7 @@
 
 library(haven)
 detach(package:dplyr)
+library(plyr)
 library(dplyr)
 
 # read in the data
