@@ -37,21 +37,25 @@ oput <- read_dta("Post Harvest Wave 1/Agriculture/secta3_harvestw1.dta") %>%
 # maize is in lower and upper case, as well as MAIZE. and MAIZE
 # with spaces and MAAIZE!
 # make the crop code all upper case!
-
+# this will take a long time if we want to make an output index
+bad_maize <- c("MAIZE.", "MAAIZE", "MAIZE FARM", "M AIZE", "MAZIE",
+oput$crop <- ifelse(op
 # could be some other legumes but don't recognize the names
 # first make a crop count variable and a legumes variable
 
 legumes <- c("PIGEON PEA", "SOYA BEANS", "LOCUST BEAN")
-oput <- ddply(
+oput <- ddply(oput, .(hhid, plotid), transform,
+              crop_count=length(crop[!is.na(crop)]),
+              legume=ifelse(any(crop %in% legumes), 1, 0))
 
+# now select on maize
+oput_maze <- oput[oput$crop %in% "MAIZE" & ! is.na(oput$qty) & !oput$qty %in% 0,]
 
 
 # need to sort units. Kilogram=1, gram=2, Litre=3. Other units are
 # offered but survey does not mention them. Basic unit is Kilorgrams
 # change everything into kilograms
 
-oput2 <- select(oput, hhid, plotid, cropid, qty, qty_unit, qty_sold=qty_sold_buyer,
-                unit_sold=qty_sold_buyer_unit, valu=qty_sold_naira)
 
 # units are not included in the data for a lot of values but
 # in the documentattion there is a supplementary table
