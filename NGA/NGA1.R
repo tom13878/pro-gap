@@ -14,7 +14,7 @@ options(scipen=999)
 
 # Section A1 has info on the dry seaons intercropping Q 29
 # Section 11b in the post planting has a question on irrigation Q24
-# Section 11c PP has info on input costs 
+# Section 11c PP has info on input costs
 
 
 
@@ -22,10 +22,57 @@ options(scipen=999)
 ############### OUTPUT ################
 #######################################
 
+# easiest to filter on maizeas early as possible
+
 oput <- read_dta("Post Harvest Wave 1/Agriculture/secta3_harvestw1.dta") %>%
-  select(zone, state, lga, hhid, plotid, cropid, land_area=sa3q5a, land_area_units=sa3q5b,
-         qty=sa3q6a, qty_unit=sa3q6b, main_buyer=sa3q10, qty_sold_buyer=sa3q11a,
-         qty_sold_buyer=sa3q11b,  qty_sold_naira=sa3q12)
+    select(hhid, plotid, cropid, crop=sa3q1, qty=sa3q6a, qty_unit=sa3q6b,
+           main_buyer=sa3q10, qty_sold_buyer=sa3q11a,
+           qty_sold_buyer_unit=sa3q11b, qty_sold_naira=sa3q12)
+
+# need to watch out because some of these crops have been
+# imputed wrong
+# unique(oput$crop) # shows poor spellings!!!
+# also what does fallow fallow and fallow fallow fallow mean
+# in the crop variable????
+# maize is in lower and upper case, as well as MAIZE. and MAIZE
+# with spaces and MAAIZE!
+# make the crop code all upper case!
+
+# could be some other legumes but don't recognize the names
+# first make a crop count variable and a legumes variable
+
+legumes <- c("PIGEON PEA", "SOYA BEANS", "LOCUST BEAN")
+oput <- ddply(
+
+
+
+# need to sort units. Kilogram=1, gram=2, Litre=3. Other units are
+# offered but survey does not mention them. Basic unit is Kilorgrams
+# change everything into kilograms
+
+oput2 <- select(oput, hhid, plotid, cropid, qty, qty_unit, qty_sold=qty_sold_buyer,
+                unit_sold=qty_sold_buyer_unit, valu=qty_sold_naira)
+
+# units are not included in the data for a lot of values but
+# in the documentattion there is a supplementary table
+# sadly this means adding unit codes by hand. Actually
+# labels are included but they suck! Half go missing
+# better to use integer values
+
+unit_code <- c(1, 2, 3, 11, 12, 13, 14, 21, 22, 23, 24, 31,
+               32, 33, 34, 41, 42, 43, 51, 52, 53, 61,
+               62, 63, 71, 72, 73, 74, 81, 82, 83,
+               91, 92, 93, 94, 95)
+weight <- c(1, 0.001, 1, 20, 50, 100, 120, 15, 30, 50, 75, 10, 25, 40, 75,
+            5, 8, 15, 3, 5, 8, 15, 25, 40, 60, 85, 110, 150,
+            1500, 2000, 2500, 10, 20, 25, 50, 200)
+
+cnvrt <- data.frame(unit_code, weight)
+oput2$qty_unit <- as.integer(oput2$qty_unit)
+oput2 <- left_join(oput2, cnvrt, by=c("qty_unit"="unit_code"))
+good <- c(1, 2, 3)
+oput2 <- oput2[oput2$qty_unit %in% good,]
+
 
 # there is the option for more buyers which might be worth investigating
 # for better idea of prices
@@ -48,6 +95,13 @@ plot2 <- read_dta("Post Planting Wave 1/Agriculture/sect11d_plantingw1.dta") %>%
          secondFertUpFront=s11dq31, secondFertPayL8R=s11dq32)
 
 #######################################
+############### LABOUR ################
+#######################################
+
+
+
+
+#######################################
 ################ SEEDS ################
 #######################################
 
@@ -62,8 +116,8 @@ seed <- read_dta("Post Planting Wave 1/Agriculture/sect11e_plantingw1.dta") %>%
 # section A4 has info on household assets
 
 implmt <- read_dta("") %>%
-  
-  
+
+
   select(y2_hhid, itemcode, qty=ag11_01, valu=ag11_02) %>%
   filter(!qty %in% 0, !is.na(qty), !valu %in% 0, !is.na(valu)) %>%
   transmute(y2_hhid, valu=qty*valu) %>%
