@@ -25,21 +25,20 @@ options(scipen=999)
 # easiest to filter on maizeas early as possible
 
 oput <- read_dta("Post Harvest Wave 1/Agriculture/secta3_harvestw1.dta") %>%
-    select(hhid, plotid, cropid, crop=sa3q1, qty=sa3q6a, qty_unit=sa3q6b,
+    dplyr::select(hhid, plotid, cropid, crop=sa3q1, qty=sa3q6a, qty_unit=sa3q6b,
            main_buyer=sa3q10, qty_sold_buyer=sa3q11a,
-           qty_sold_buyer_unit=sa3q11b, qty_sold_naira=sa3q12)
+                  qty_sold_buyer_unit=sa3q11b, qty_sold_naira=sa3q12)
 
-# need to watch out because some of these crops have been
-# imputed wrong
-# unique(oput$crop) # shows poor spellings!!!
+oput$qty_unit <- as.integer(oput$qty_unit)
+oput$qty_sold_buyer_unit <- as.integer(oput$qty_sold_buyer_unit)
+
 # also what does fallow fallow and fallow fallow fallow mean
 # in the crop variable????
-# maize is in lower and upper case, as well as MAIZE. and MAIZE
-# with spaces and MAAIZE!
-# make the crop code all upper case!
-# this will take a long time if we want to make an output index
-bad_maize <- c("MAIZE.", "MAAIZE", "MAIZE FARM", "M AIZE", "MAZIE",
-oput$crop <- ifelse(op
+
+# this will take a long time if we want to make an output index!
+bad_maize <- c("MAIZE.", "MAAIZE", "MAIZE FARM", "M AIZE", "MAZIE", "maize")
+oput$crop <- ifelse(oput$crop %in% bad_maize, "MAIZE", oput$crop)
+
 # could be some other legumes but don't recognize the names
 # first make a crop count variable and a legumes variable
 
@@ -59,9 +58,8 @@ oput_maze <- oput[oput$crop %in% "MAIZE" & ! is.na(oput$qty) & !oput$qty %in% 0,
 
 # units are not included in the data for a lot of values but
 # in the documentattion there is a supplementary table
-# sadly this means adding unit codes by hand. Actually
-# labels are included but they suck! Half go missing
-# better to use integer values
+# sadly this means adding unit codes by hand.
+# labels that do exits in the data go missing half the time!
 
 unit_code <- c(1, 2, 3, 11, 12, 13, 14, 21, 22, 23, 24, 31,
                32, 33, 34, 41, 42, 43, 51, 52, 53, 61,
@@ -72,31 +70,80 @@ weight <- c(1, 0.001, 1, 20, 50, 100, 120, 15, 30, 50, 75, 10, 25, 40, 75,
             1500, 2000, 2500, 10, 20, 25, 50, 200)
 
 cnvrt <- data.frame(unit_code, weight)
-oput2$qty_unit <- as.integer(oput2$qty_unit)
-oput2 <- left_join(oput2, cnvrt, by=c("qty_unit"="unit_code"))
-good <- c(1, 2, 3)
-oput2 <- oput2[oput2$qty_unit %in% good,]
+oput_maze$qty_unit <- as.integer(oput_maze$qty_unit)
+oput_maze2 <- left_join(oput_maze, cnvrt, by=c("qty_unit"="unit_code"))
+oput_maze2 <- left_join(oput_maze, cnvrt, by=c("qty_sold_buyer_unit"="unit_code"))
+oput_maze2 <- dplyr::mutate(oput_maze2, qty_kg = qty*weight)
 
+# pretty limited information on the prices paid by buyers
+sum(table(oput_maze$qty_sold_buyer_unit))
 
-# there is the option for more buyers which might be worth investigating
-# for better idea of prices
+oput_maze <- dplyr::select(oput_maze, hhid, plotid, crop, qty, maize_price, crop_count, legumes)
 
 #######################################
 ############## CHEMICAL ###############
 #######################################
 
 plot <- read_dta("Post Planting Wave 1/Agriculture/sect11c_plantingw1.dta") %>%
-  select(hhid, plotid, pest=s11cq1, herb=s11cq10, leftOverFert=)
+  select(hhid, plotid, pest=s11cq1, herb=s11cq10)
 
-plot2 <- read_dta("Post Planting Wave 1/Agriculture/sect11d_plantingw1.dta") %>%
-  select(hhid, plotid, fert= s11dq1, leftOverFert=s11dq2, leftOverFertType=s11dq3,
-         leftOverFertQty=s11dq4, FreeFert=s11dq6, FreeFertType=s11dq7,
-         FreeFertqty=s11dq8, firstFert=s11dq12, firstFertType=s11dq13,
-         firstFertQty=s11dq15, firstFertValu=s11dq18, firstFertTransCost=s11dq16,
-         secondFertUpFront=s11dq20, secondFertPayL8R=s11dq21, secondFert=s11dq23,
-         secondFertType=s11dq25,
-         secondFertQty=s11dq26, secondFertValu=s11dq29, secondFertTransCost=s11dq27,
-         secondFertUpFront=s11dq31, secondFertPayL8R=s11dq32)
+# COMMERCIAL FERTILIZER
+fert1 <- read_dta("Post Planting Wave 1/Agriculture/sect11d_plantingw1.dta") %>%
+  select(hhid, plotid, typ=s11dq14, qty=s11dq15, valu=s11dq18)
+fert2 <- read_dta("Post Planting Wave 1/Agriculture/sect11d_plantingw1.dta") %>%
+    select(hhid, plotid, typ=s11dq25, qty=s11dq26, valu=s11dq29)
+
+# FREE OR LEFT OVER FERTILIZER
+freeFert <-  read_dta("Post Planting Wave 1/Agriculture/sect11d_plantingw1.dta") %>%
+    select(hhid, plotid, typ=s11dq7, qty=s11dq8)
+leftOverFert <- read_dta("Post Planting Wave 1/Agriculture/sect11d_plantingw1.dta") %>%
+    select(hhid, plotid, typ=s11dq3, qty=s11dq4)
+
+# make factor variables into characters for easier joining
+fert1$typ <- as.character(as_factor(fert1$typ))
+fert2$typ <- as.character(as_factor(fert2$typ))
+freeFert$typ <- as.character(as_factor(freeFert$typ))
+leftOverFert$typ <- as.character(as_factor(leftOverFert$typ))
+
+# for now set composite manure and other values to NA
+bad <- c("composite manure", "other (specify)")
+fert1$typ <- ifelse(fert1$typ %in% bad, NA, fert1$typ)
+fert2$typ <- ifelse(fert2$typ %in% bad, NA, fert2$typ)
+freeFert$typ <- ifelse(freeFert$typ %in% bad, NA, freeFert$typ)
+leftOverFert$typ <- ifelse(leftOverFert$typ %in% bad, NA, leftOverFert$typ)
+
+# provide a nitrogen component value for npk and urea (from Michiel's file)
+typ <- c("npk", "urea")
+n <- c(0.27, 0.46)
+p <- c(0.05668, 0)
+k <- c(0.1079, 0)
+comp <- data.frame(typ, n, p, k)
+
+fert1 <- left_join(fert1, comp)
+fert2 <- left_join(fert2, comp)
+freeFert <- left_join(freeFert, comp)
+leftOverFert <- left_join(leftOverFert, comp)
+
+rm(list=c("comp", "typ", "n", "p", "k"))
+
+fert <- rbind(fert1, fert2)
+
+# make calculations for commercial fertilizer
+fert <- mutate(fert,
+               Vfert=valu/qty,
+               Qn=qty*n,
+               Qp=qty*p)
+
+fert$Pn <- fert$Vfert/fert$n
+
+fert <- group_by(fert, hhid, plotid) %>%
+  summarise(N=sum(Qn, na.rm=TRUE),
+            P=sum(Qp, na.rm=TRUE),
+            WPn=sum((Qn/N)*Pn, na.rm=TRUE))
+
+# now add back in the left over or free fert which does nothave a price
+
+
 
 #######################################
 ############### LABOUR ################
