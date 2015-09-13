@@ -141,7 +141,27 @@ fert <- group_by(fert, hhid, plotid) %>%
             P=sum(Qp, na.rm=TRUE),
             WPn=sum((Qn/N)*Pn, na.rm=TRUE))
 
-# now add back in the left over or free fert which does nothave a price
+# now add back in the left over or free fert which does not have a price
+
+otherFert <- rbind(freeFert, leftOverFert)
+
+otherFert <- mutate(otherFert,
+                    QnO=qty*n,
+                    QpO=qty*p)
+
+otherFert <- group_by(otherFert, hhid, plotid) %>%
+    summarise(NO=sum(QnO, na.rm=TRUE),
+              PO=sum(QpO, na.rm=TRUE))
+
+# join the commercial and other fertilizers on quantity
+# no change to price though!
+
+fert <- left_join(fert, otherFert)
+fert <- mutate(fert,
+              N=N+NO,
+              P=P+PO,
+               WPn) %>%
+    select(hhid, plotid, N, P, WPn)
 
 
 
