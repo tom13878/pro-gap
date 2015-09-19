@@ -12,7 +12,7 @@ library(dplyr)
 
 options(scipen=999)
 
-# Section A1 has info on the dry seaons intercropping Q 29
+# Section A1 has info on the dry seasons intercropping Q 29
 # Section 11b in the post planting has a question on irrigation Q24
 # Section 11c PP has info on input costs
 
@@ -85,19 +85,19 @@ oput_maze <- dplyr::select(oput_maze, hhid, plotid, crop, qty, maize_price, crop
 #######################################
 
 plot <- read_dta("Post Planting Wave 1/Agriculture/sect11c_plantingw1.dta") %>%
-  select(hhid, plotid, pest=s11cq1, herb=s11cq10)
+  dplyr::select(hhid, plotid, pest=s11cq1, herb=s11cq10)
 
 # COMMERCIAL FERTILIZER
 fert1 <- read_dta("Post Planting Wave 1/Agriculture/sect11d_plantingw1.dta") %>%
-  select(hhid, plotid, typ=s11dq14, qty=s11dq15, valu=s11dq18)
+  dplyr::select(hhid, plotid, typ=s11dq14, qty=s11dq15, valu=s11dq18)
 fert2 <- read_dta("Post Planting Wave 1/Agriculture/sect11d_plantingw1.dta") %>%
-    select(hhid, plotid, typ=s11dq25, qty=s11dq26, valu=s11dq29)
+    dplyr::select(hhid, plotid, typ=s11dq25, qty=s11dq26, valu=s11dq29)
 
 # FREE OR LEFT OVER FERTILIZER
 freeFert <-  read_dta("Post Planting Wave 1/Agriculture/sect11d_plantingw1.dta") %>%
-    select(hhid, plotid, typ=s11dq7, qty=s11dq8)
+    dplyr::select(hhid, plotid, typ=s11dq7, qty=s11dq8)
 leftOverFert <- read_dta("Post Planting Wave 1/Agriculture/sect11d_plantingw1.dta") %>%
-    select(hhid, plotid, typ=s11dq3, qty=s11dq4)
+    dplyr::select(hhid, plotid, typ=s11dq3, qty=s11dq4)
 
 # make factor variables into characters for easier joining
 fert1$typ <- as.character(as_factor(fert1$typ))
@@ -164,13 +164,40 @@ fert <- mutate(fert,
     select(hhid, plotid, N, P, WPn)
 
 
+#######################################
+############### AREAS #################
+#######################################
+
+# world bank provides a complete set of
+# area measurements for both years
+setwd("..")
+areas <- read_dta("areas_nga_y1_imputed.dta") %>%
+  select(hhid=case_id, plotnum, area=area_gps_mi_50)
+
+areas$area <- ifelse(areas$area %in% 0, NA, areas$area)
 
 #######################################
 ############### LABOUR ################
 #######################################
 
+# labour question asked in post harvest questionnaire
+# in section A2 - this is split into household and
+# hired labour. household labour is asked in weeks,
+# days and hours, whereas hired labour is asked in
+# days only - probably best to keep household labour also
+# in days
 
-
+lab <- read_dta("Post Harvest Wave 1/Agriculture/secta2_harvestw1.dta") %>%
+    select(hhid, plotid, sa2q1a1:sa2q9) %>%
+        transmute(hhid, plotid,
+                  id1=sa2q1a1, lab1=sa2q1a2*sa2q1a3,
+                  id2=sa2q1b1, lab2=sa2q1b2*sa2q1b3,
+                  id3=sa2q1c1, lab3=sa2q1c2*sa2q1c3,
+                  id4=sa2q1d1, lab4=sa2q1d2*sa2q1d3,
+                  hirM=sa2q2*sa2q3,
+                  hirF=sa2q5*sa2q6,
+                  hirC=sa2q8*sa2q9
+                  )
 
 #######################################
 ################ SEEDS ################
