@@ -185,8 +185,10 @@ areas$area <- ifelse(areas$area %in% 0, NA, areas$area)
 # hired labour. household labour is asked in weeks,
 # days and hours, whereas hired labour is asked in
 # days only - probably best to keep household labour also
-# in days
-
+# in days - does not seem to be a labour section for
+# post planting - so no weeding etc, only harvest labour recorded
+# also may need to add something for getting child labour into
+# something comparable to man labour
 lab <- read_dta("Post Harvest Wave 1/Agriculture/secta2_harvestw1.dta") %>%
     select(hhid, plotid, sa2q1a1:sa2q9) %>%
         transmute(hhid, plotid,
@@ -198,6 +200,15 @@ lab <- read_dta("Post Harvest Wave 1/Agriculture/secta2_harvestw1.dta") %>%
                   hirF=sa2q5*sa2q6,
                   hirC=sa2q8*sa2q9
                   )
+
+# make all NA values zero
+lab[is.na(lab)] <- 0
+
+# sum all labour across a single plot - all measured in days
+lab <- transmute(lab, hhid, plotid,
+                 lab=lab1 + lab2 + lab3 + lab4 +
+                     hirM + hirF + hirC)
+
 
 #######################################
 ################ SEEDS ################
