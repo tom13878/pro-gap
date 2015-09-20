@@ -71,12 +71,14 @@ weight <- c(1, 0.001, 1, 20, 50, 100, 120, 15, 30, 50, 75, 10, 25, 40, 75,
 
 cnvrt <- data.frame(unit_code, weight)
 oput_maze$qty_unit <- as.integer(oput_maze$qty_unit)
-oput_maze2 <- left_join(oput_maze, cnvrt, by=c("qty_unit"="unit_code"))
-oput_maze2 <- left_join(oput_maze, cnvrt, by=c("qty_sold_buyer_unit"="unit_code"))
-oput_maze2 <- dplyr::mutate(oput_maze2, qty_kg = qty*weight)
+oput_maze <- left_join(oput_maze, cnvrt, by=c("qty_unit"="unit_code"))
+oput_maze <- left_join(oput_maze, cnvrt, by=c("qty_sold_buyer_unit"="unit_code"))
+oput_maze <- dplyr::mutate(oput_maze, qty_kg = qty*weight)
 
 # pretty limited information on the prices paid by buyers
 sum(table(oput_maze$qty_sold_buyer_unit))
+
+# so basically done but eed maize price!
 
 oput_maze <- dplyr::select(oput_maze, hhid, plotid, crop, qty, maize_price, crop_count, legumes)
 
@@ -234,7 +236,29 @@ implmt <- read_dta("") %>%
   summarise(value=sum(valu))
 
 # section A6 contains info on the animal holdings.
-# including value of animal if sold
+# including value of animal if sold - so there is the value
+# of animal holdings in both interviews
 
-# in the post planting questionnaire there is also
-# information on animal holdings section 11i
+# -------------------------------------
+# livestock asset wealth
+# -------------------------------------
+
+lvstk <- read_dta("Post Planting Wave 1/Agriculture/sect11i_plantingw1.dta") %>%
+    select(hhid, lvstk=item_cd, qty=s11iq2, valu=s11iq3) %>%
+        mutate(prc=valu/qty)
+
+# select only the larger animals - codes are
+# in the survey but basically cows, pigs sheep and camels
+big <- c(101, 102, 103, 104, 105, 106, 107,
+         108, 109, 110, 111, 112, 122)
+
+lvstk <- lvstk[lvstk$lvstk %in% big,]
+
+lvstk <- ddply(lvstk, .(lvstk), transform,
+               valu=ifelse(is.na(valu), mean(prc, na.rm=TRUE)*qty, valu))
+
+# calculate per houshold livestock wealth
+lvstk <- group_by(lvstk, hhid) %>%
+        summarise(lvstk_valu=sum(valu))
+
+lvstk$hhno <- as.character(lvstk$hhno)
