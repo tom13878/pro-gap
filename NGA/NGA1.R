@@ -12,9 +12,24 @@ library(dplyr)
 
 options(scipen=999)
 
-# Section A1 has info on the dry seasons intercropping Q 29
-# Section 11b in the post planting has a question on irrigation Q24
-# Section 11c PP has info on input costs
+# cropping type
+cropping <- read_dta("Post Planting Wave 1/Agriculture/sect11f_plantingw1.dta") %>%
+    dplyr::select(hhid, plotid, cropcode, harv_area=s11fq1a, harv_area_unit=s11fq1b,
+                  cropin=s11fq2)
+
+# select only on maize
+cropping <- filter(cropping, cropcode %in% 1080)
+
+cropping <- dplyr::mutate(cropping,
+                          monoCrop=ifelse(cropin %in% 1, 1, 0),
+                          interCrop=ifelse(cropin %in% 2, 1, 0),
+                          relayCrop=ifelse(cropin %in% 3, 1, 0),
+                          mixCrop=ifelse(cropin %in% 4, 1, 0),
+                          alleyCrop=ifelse(cropin %in% 5, 1, 0),
+                          stripCrop=ifelse(cropin %in% 4, 1, 0))
+
+
+
 
 
 
@@ -88,6 +103,12 @@ oput_maze <- dplyr::select(oput_maze, hhid, plotid, crop, qty, maize_price, crop
 
 plot <- read_dta("Post Planting Wave 1/Agriculture/sect11c_plantingw1.dta") %>%
   dplyr::select(hhid, plotid, pest=s11cq1, herb=s11cq10)
+
+plot$pest <- ifelse(plot$pest %in% 1, 1, 0)
+plot$herb <- ifelse(plot$herb %in% 1, 1, 0)
+
+plot <- dplyr::mutate(plot, hhid, plotid,
+                         chem=ifelse(pest %in% 1 | herb %in% 1, 1, 0))
 
 # COMMERCIAL FERTILIZER
 fert1 <- read_dta("Post Planting Wave 1/Agriculture/sect11d_plantingw1.dta") %>%
@@ -165,6 +186,8 @@ fert <- mutate(fert,
                WPn) %>%
     select(hhid, plotid, N, P, WPn)
 
+# and join with other chemical variables
+plot <- left_join(plot, fert)
 
 #######################################
 ############### AREAS #################
@@ -177,6 +200,15 @@ areas <- read_dta("areas_nga_y1_imputed.dta") %>%
   select(hhid=case_id, plotnum, area=area_gps_mi_50)
 
 areas$area <- ifelse(areas$area %in% 0, NA, areas$area)
+
+# also add in the farmers estimate of the plot area
+plot2 <- read_dta("Post Planting Wave 1/Agriculture/sect11b_plantingw1.dta") %>%
+    dplyr::select(hhid, plotid, irrig=s11bq24)
+
+plot2$irrig <- ifelse(irrig %in% 1, 1, 0)
+
+# Q24 in same part of questionnaire covers irrigation
+
 
 #######################################
 ############### LABOUR ################
@@ -240,7 +272,8 @@ implmt <- read_dta("") %>%
 # of animal holdings in both interviews
 
 # -------------------------------------
-# livestock asset wealth
+# livestock asset wealth - 2 possible options
+# either post planting or post harvest
 # -------------------------------------
 
 lvstk <- read_dta("Post Planting Wave 1/Agriculture/sect11i_plantingw1.dta") %>%
@@ -262,3 +295,5 @@ lvstk <- group_by(lvstk, hhid) %>%
         summarise(lvstk_valu=sum(valu))
 
 lvstk$hhno <- as.character(lvstk$hhno)
+
+# also do post harvest wealth
