@@ -12,26 +12,6 @@ library(dplyr)
 
 options(scipen=999)
 
-# cropping type
-cropping <- read_dta("Post Planting Wave 1/Agriculture/sect11f_plantingw1.dta") %>%
-    dplyr::select(hhid, plotid, cropcode, harv_area=s11fq1a, harv_area_unit=s11fq1b,
-                  cropin=s11fq2)
-
-# select only on maize
-cropping <- filter(cropping, cropcode %in% 1080)
-
-cropping <- dplyr::mutate(cropping,
-                          monoCrop=ifelse(cropin %in% 1, 1, 0),
-                          interCrop=ifelse(cropin %in% 2, 1, 0),
-                          relayCrop=ifelse(cropin %in% 3, 1, 0),
-                          mixCrop=ifelse(cropin %in% 4, 1, 0),
-                          alleyCrop=ifelse(cropin %in% 5, 1, 0),
-                          stripCrop=ifelse(cropin %in% 4, 1, 0))
-
-
-
-
-
 
 #######################################
 ############### OUTPUT ################
@@ -101,13 +81,13 @@ oput_maze <- dplyr::select(oput_maze, hhid, plotid, crop, qty, maize_price, crop
 ############## CHEMICAL ###############
 #######################################
 
-plot <- read_dta("Post Planting Wave 1/Agriculture/sect11c_plantingw1.dta") %>%
+chem <- read_dta("Post Planting Wave 1/Agriculture/sect11c_plantingw1.dta") %>%
   dplyr::select(hhid, plotid, pest=s11cq1, herb=s11cq10)
 
-plot$pest <- ifelse(plot$pest %in% 1, 1, 0)
-plot$herb <- ifelse(plot$herb %in% 1, 1, 0)
+chem$pest <- ifelse(chem$pest %in% 1, 1, 0)
+chem$herb <- ifelse(chem$herb %in% 1, 1, 0)
 
-plot <- dplyr::mutate(plot, hhid, plotid,
+chem <- dplyr::mutate(chem, hhid, plotid,
                          chem=ifelse(pest %in% 1 | herb %in% 1, 1, 0))
 
 # COMMERCIAL FERTILIZER
@@ -187,7 +167,43 @@ fert <- mutate(fert,
     select(hhid, plotid, N, P, WPn)
 
 # and join with other chemical variables
-plot <- left_join(plot, fert)
+chem <- left_join(chem, fert)
+
+#######################################
+########### MISCELLANEOUS #############
+#######################################
+
+# -------------------------------------
+# Intercropping variable has lots of
+# options - make summy variables for
+# all of them
+# -------------------------------------
+
+cropping <- read_dta("Post Planting Wave 1/Agriculture/sect11f_plantingw1.dta") %>%
+    dplyr::select(hhid, plotid, cropcode, harv_area=s11fq1a, harv_area_unit=s11fq1b,
+                  cropin=s11fq2)
+
+# find only maize
+cropping <- filter(cropping, cropcode %in% 1080)
+
+cropping <- dplyr::mutate(cropping,
+                          monoCrop=ifelse(cropin %in% 1, 1, 0),
+                          interCrop=ifelse(cropin %in% 2, 1, 0),
+                          relayCrop=ifelse(cropin %in% 3, 1, 0),
+                          mixCrop=ifelse(cropin %in% 4, 1, 0),
+                          alleyCrop=ifelse(cropin %in% 5, 1, 0),
+                          stripCrop=ifelse(cropin %in% 4, 1, 0))
+
+cropping <- dplyr::select(cropping, -cropcode, -cropin)
+
+# ------------------------------------
+# irrigation variable
+# ------------------------------------
+
+irrig <- read_dta("Post Planting Wave 1/Agriculture/sect11b_plantingw1.dta") %>%
+    dplyr::select(hhid, plotid, irrig=s11bq24)
+
+irrig$irrig <- ifelse(irrig %in% 1, 1, 0)
 
 #######################################
 ############### AREAS #################
@@ -200,14 +216,6 @@ areas <- read_dta("areas_nga_y1_imputed.dta") %>%
   select(hhid=case_id, plotnum, area=area_gps_mi_50)
 
 areas$area <- ifelse(areas$area %in% 0, NA, areas$area)
-
-# also add in the farmers estimate of the plot area
-plot2 <- read_dta("Post Planting Wave 1/Agriculture/sect11b_plantingw1.dta") %>%
-    dplyr::select(hhid, plotid, irrig=s11bq24)
-
-plot2$irrig <- ifelse(irrig %in% 1, 1, 0)
-
-# Q24 in same part of questionnaire covers irrigation
 
 
 #######################################
@@ -244,28 +252,28 @@ lab <- transmute(lab, hhid, plotid,
                      hirM + hirF + hirC)
 
 
-#######################################
-################ SEEDS ################
-#######################################
-
-# section 11e of post planting
-seed <- read_dta("Post Planting Wave 1/Agriculture/sect11e_plantingw1.dta") %>%
-  select(hhid, plotid, )
 
 #######################################
 ############### Assets ################
 #######################################
 
-# section A4 has info on household assets
+# -------------------------------------
+# Assets were recorded post planting
+# and post harvest for livestock
+# -------------------------------------
 
-implmt <- read_dta("") %>%
 
+# -------------------------------------
+# Agricultural assets - section A4 post harvest
+# only in post harvest questionnaire
+# -------------------------------------
 
-  select(y2_hhid, itemcode, qty=ag11_01, valu=ag11_02) %>%
-  filter(!qty %in% 0, !is.na(qty), !valu %in% 0, !is.na(valu)) %>%
-  transmute(y2_hhid, valu=qty*valu) %>%
-  group_by(y2_hhid) %>%
-  summarise(value=sum(valu))
+implmt <- read_dta("Post Harvest Wave 1/Agriculture/secta42_harvestw1.dta") %>%
+    dplyr::select(hhid, itemcode=item_cd, qty=item_seq, valu=sa4q4) %>%
+        filter(!qty %in% 0, !is.na(qty), !valu %in% 0, !is.na(valu)) %>%
+            transmute(hhid, valu=qty*valu) %>%
+                group_by(hhid) %>%
+                    summarise(value=sum(valu))
 
 # section A6 contains info on the animal holdings.
 # including value of animal if sold - so there is the value
@@ -292,8 +300,113 @@ lvstk <- ddply(lvstk, .(lvstk), transform,
 
 # calculate per houshold livestock wealth
 lvstk <- group_by(lvstk, hhid) %>%
-        summarise(lvstk_valu=sum(valu))
+        summarise(lvstk_valu=sum(valu*qty))
 
-lvstk$hhno <- as.character(lvstk$hhno)
+lvstk$hhid <- as.character(lvstk$hhid)
 
-# also do post harvest wealth
+# ------------------------------------
+# Post harvest lvstk capital - A6
+# ------------------------------------
+
+lvstk2 <- read_dta("Post Harvest Wave 1/Agriculture/secta6_harvestw1.dta") %>%
+     select(hhid, lvstk=animal_cd, qty=sa6q2, valu=sa6q3) %>%
+        mutate(prc=valu/qty)
+
+# select only the larger animals - codes are
+# in the survey but basically cows, pigs sheep and camels
+big <- c(101, 102, 103, 104, 105, 106, 107,
+         108, 109, 110, 111, 112, 122)
+
+lvstk2 <- lvstk2[lvstk2$lvstk %in% big,]
+
+lvstk2 <- ddply(lvstk2, .(lvstk), transform,
+               valu=ifelse(is.na(valu), mean(prc, na.rm=TRUE)*qty, valu))
+
+# calculate per houshold livestock wealth
+lvstk2 <- group_by(lvstk2, hhid) %>%
+        summarise(lvstk_valu=sum(valu*qty))
+
+lvstk2$hhid <- as.character(lvstk2$hhid)
+
+
+#######################################
+################ GEO ##################
+#######################################
+
+geo <- read_dta("Geodata/NGA_HouseholdGeovariables_Y1.dta") %>%
+    dplyr::select(hhid, lon=lon_dd_mod, lat=lat_dd_mod, zone,
+                  state, AEZ=ssa_aez09, rural=sector)
+
+geo$zone <- as_factor(geo$zone)
+geo$state <- as_factor(geo$state)
+geo$rural <- ifelse(geo$rural %in% 2, 1, 0)
+
+#######################################
+########### CROSS SECTION #############
+#######################################
+
+CS1 <- left_join(oput_maze, plot)
+CS1 <- left_join(CS1, lab)
+CS1 <- left_join(CS1, areas)
+CS1 <- left_join(CS1, implmt)
+CS1 <- left_join(CS1, geo)
+CS1 <- left_join(CS1, rural)
+CS1 <- left_join(CS1, voucher)
+
+# -------------------------------------
+# change the y2_hhid to the y3_hhid
+# for later use in the panel.
+# -------------------------------------
+
+setwd("c:/USers/tomas/Documents/work/LEI/data/TZA/TZA_2012_LSMS_v01_M_STATA_English_labels")
+key <- read_dta('NPSY3.PANEL.KEY.dta')
+key$y2_hhid <- zap_empty(key$y2_hhid)
+key$y3_hhid <- zap_empty(key$y3_hhid)
+
+key <- select(key, y2_hhid, y3_hhid) %>%
+  na.omit() %>% unique()
+
+CS1 <- left_join(CS1, key) %>%
+  rename(hhid=y3_hhid) %>%
+  select(hhid, everything(), -y2_hhid)
+
+rm(list=ls()[!ls() %in% "CS1"])
+
+# -------------------------------------
+# Make some new variables
+# -------------------------------------
+
+CS1 <- ddply(CS1, .(hhid), transform, area_tot=sum(area))
+
+# per hectacre
+CS1 <- mutate(CS1,
+             yld=qty/area,
+             N=N/area,
+             P=P/area,
+             asset=value/area_tot
+)
+
+# -------------------------------------
+# Inflate 2010 prices to 2012 prices
+# using inflation rate for 2010 and 2011
+# from world bank:
+# http://data.worldbank.org/indicator/FP.CPI.TOTL.ZG/countries/TZ?display=graph
+# -------------------------------------
+
+CS1$asset <- CS1$asset*(1+0.062)*(1+0.12)
+CS1$maize_prc <- CS1$maize_prc*(1+0.062)*(1+0.12)
+CS1$WPn <- CS1$WPn*(1+0.062)*(1+0.12)
+
+CS1 <- select(CS1, -plotnum, -qty, -value)
+
+# add final variables
+CS1 <- mutate(CS1,
+             N2=N^2,
+             asset2=asset^2,
+             area2=area^2,
+             lab2=lab^2,
+             y12=0
+)
+
+# save to file
+write_dta(CS1, "C:/Users/Tomas/Documents/Work/LEI/NGA10_data.dta")
