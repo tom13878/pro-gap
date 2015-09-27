@@ -192,7 +192,7 @@ lab[is.na(lab)] <- 0
 
 # sum all labour across a single plot - all measured in days
 lab <- transmute(lab, hhid, plotid,
-                 lab=lab1 + lab2 + lab3 + lab4 +
+                 harv_lab=lab1 + lab2 + lab3 + lab4 +
                      hirM + hirF + hirC)
 
 
@@ -307,7 +307,7 @@ cropping <- dplyr::select(cropping, -cropcode, -cropin)
 irrig <- read_dta("Post Planting Wave 1/Agriculture/sect11b_plantingw1.dta") %>%
     dplyr::select(hhid, plotid, irrig=s11bq24)
 
-irrig$irrig <- ifelse(irrig %in% 1, 1, 0)
+irrig$irrig <- ifelse(irrig$irrig %in% 1, 1, 0)
 
 #######################################
 ########### CROSS SECTION #############
@@ -316,7 +316,12 @@ irrig$irrig <- ifelse(irrig %in% 1, 1, 0)
 CS1 <- left_join(oput_maze, chem)
 CS1 <- left_join(CS1, areas)
 CS1 <- left_join(CS1, lab)
+
+# add in placeholder for planting labour in wave2
+CS1$plant_lab <- NA
+
 CS1 <- left_join(CS1, cropping)
+CS1 <- left_join(CS1, irrig)
 CS1 <- left_join(CS1, implmt)
 CS1 <- left_join(CS1, lvstk)
 CS1 <- left_join(CS1, lvstk2)
@@ -340,7 +345,7 @@ CS1 <- mutate(CS1,
              yld=qty/area,
              N=N/area,
              P=P/area,
-             asset=(implmt_value + lvstk_valu + lvstk2_valu)/area_tot
+             asset=(implmt_value + lvstk2_valu)/area_tot
 )
 
 # -------------------------------------
@@ -361,7 +366,7 @@ CS1 <- mutate(CS1,
              N2=N^2,
              asset2=asset^2,
              area2=area^2,
-             lab2=lab^2,
+             harv_lab2=harv_lab^2,
              surveyyear=2010
 )
 
