@@ -2,6 +2,7 @@
 ########## TANZANIA 2010-11 ###########
 #######################################
 
+# WDswitch
 # dataPath <- "D:\\Data\\IPOP\\SurveyData\\"
 # wdPath <- "D:\\Dropbox\\Michiel_research\\2285000066 Africa Maize Yield Gap"
 # setwd(wdPath)
@@ -20,6 +21,7 @@ options(scipen=999)
 ############### OUTPUT ################
 #######################################
 
+# WDswitch
 # oput <- read_dta(file.path(dataPath, "TZA\\2010\\Data\\TZNPS2AGRDTA/AG_SEC4A.dta")) %>%
 oput <- read_dta(file.path(dataPath, "TZNPS2AGRDTA/AG_SEC4A.dta")) %>%
   dplyr::select(y2_hhid, plotnum, zaocode, inter_crop=ag4a_04,
@@ -43,6 +45,8 @@ rm(list=c("oput", "legumes"))
 #######################################
 ############# CHEMICAL ################
 #######################################
+
+# WDswitch
 # plot <- read_dta(file.path(dataPath, "TZA\\2010\\Data\\TZNPS2AGRDTA/AG_SEC3A.dta")) %>%
 plot <- read_dta(file.path(dataPath, "\\TZNPS2AGRDTA/AG_SEC3A.dta")) %>%
   dplyr::select(y2_hhid, plotnum, maze=zaocode, soil=ag3a_09, slope=ag3a_16, irrig=ag3a_17, title=ag3a_27,
@@ -64,10 +68,12 @@ plot$fallow <- ifelse(plot$fallow_year %in% 0, 0, plot$fallow )
 plot$fallow <- ifelse(is.na(plot$fallow_year), NA, plot$fallow)
 plot <- dplyr::select(plot, -fallow_year)
 
+# WDswitch
 # fert1 <- read_dta(file.path(dataPath, "TZA\\2010\\Data\\TZNPS2AGRDTA/AG_SEC3A.dta")) %>%
 fert1 <- read_dta(file.path(dataPath, "TZNPS2AGRDTA/AG_SEC3A.dta")) %>%
   dplyr::select(y2_hhid, plotnum, typ=ag3a_46, qty=ag3a_47, vouch=ag3a_48, valu=ag3a_49)
 
+# WDswitch
 # fert2 <- read_dta(file.path(dataPath, "TZA\\2010\\Data\\TZNPS2AGRDTA/AG_SEC3A.dta")) %>%
 fert2 <- read_dta(file.path(dataPath, "TZNPS2AGRDTA/AG_SEC3A.dta")) %>%
   dplyr::select(y2_hhid, plotnum, typ=ag3a_53, qty=ag3a_54, vouch=ag3a_55, valu=ag3a_56)
@@ -146,6 +152,7 @@ rm(list=c("fert1", "fert2", "fert", "fertsub", "fertnosub", "fertmix"))
 ############### LABOUR ################
 #######################################
 
+# WDswitch
 # lab <- read_dta(file.path(dataPath, "TZA\\2010\\Data\\TZNPS2AGRDTA/AG_SEC3A.dta")) %>%
 lab <- read_dta(file.path(dataPath, "\\TZNPS2AGRDTA/AG_SEC3A.dta")) %>%
   dplyr::select( y2_hhid, plotnum, ag3a_70_id1:ag3a_72_9 )
@@ -174,6 +181,7 @@ lab$lab <- ifelse(lab$lab %in% 0, NA, lab$lab)
 ############ rural/urban ##############
 #######################################
 
+# WDswitch
 # rural <-  read_dta(file.path(dataPath, "TZA\\2010\\Data\\TZNPS2HH1DTA/HH_SEC_A.dta")) %>%
 rural <-  read_dta(file.path(dataPath, "HH_SEC_A.dta")) %>%
     dplyr::select(y2_hhid, rural=y2_rural)
@@ -187,6 +195,7 @@ rural$rural <- ifelse(rural$rural %in% 1, 1, 0)
 # NB: names of distance variables in BID are not correct. dist hh does not exist, instead names are dist01-dist06
 # Renamed to be made consistent with year 3 data.
 
+# WDswitch
 # geo <- read.csv(file.path(wdPath, "Analysis\\TZA\\Data\\TZA_geo_total_2010.csv"), stringsAsFactors=F) %>% 
 geo <- read.csv(file.path(dataPath, "TZA_geo_total_2010.csv"), stringsAsFactors=F) %>% 
     dplyr::select(y2_hhid, lon, lat, plotnum, SPEI, RootDepth, region=NAME_1,
@@ -221,6 +230,7 @@ geo$zone <- factor(geo$zone)
 ############### AREAs #################
 #######################################
 
+# WDswitch
 # areas <- read_dta(file.path(dataPath, "Plot_size/areas_tza_y2_imputed.dta")) %>%
 areas <- read_dta(file.path(dataPath, "areas_tza_y2_imputed.dta")) %>%  
   dplyr::select(y2_hhid=case_id, plotnum, area=area_gps_mi_50)
@@ -231,6 +241,7 @@ areas$area <- ifelse(areas$area %in% 0, NA, areas$area)
 ############### ASSETS ################
 #######################################
 
+# WDswitch
 # implmt <- read_dta(file.path(dataPath, "TZA\\2010\\Data\\TZNPS2AGRDTA/AG_SEC11.dta")) %>%
 implmt <- read_dta(file.path(dataPath, "TZNPS2AGRDTA/AG_SEC11.dta")) %>%
   dplyr::select(y2_hhid, itemcode, qty=ag11_01, valu=ag11_02) %>%
@@ -243,6 +254,7 @@ implmt <- read_dta(file.path(dataPath, "TZNPS2AGRDTA/AG_SEC11.dta")) %>%
 ########## TRANSPORT COSTS ############
 #######################################
 
+# WDswitch
 # insert Michiel's path to file here
 tc <- read_dta(file.path(dataPath, "TZNPS2AGRDTA/AG_SEC5a.dta")) %>%
   dplyr::filter(zaocode %in% 11) %>%
@@ -254,6 +266,7 @@ tc$trans <- ifelse(tc$trans %in% 1, 1, 0)
 ########### SOCIO/ECONOMIC ############
 #######################################
 
+# WDswitch
 # insert Michiel's path to file here
 se <- read_dta(file.path(dataPath, "HH_SEC_B.dta")) %>%
   filter(hh_b05 %in% 1) %>% # 1 for head of household
@@ -263,6 +276,8 @@ se$sex <- ifelse(se$sex %in% 2, 1, 0)
 se$yob <- as.integer(as.character(se$yob))
 
 # education
+# WDswitch
+# insert Michiel's path to file here
 ed <- read_dta(file.path(dataPath, "HH_SEC_C.dta")) %>%
   dplyr::select(y2_hhid, indidy2, start=hh_c04, end=hh_c08)
 
@@ -283,6 +298,9 @@ se$educ <- ifelse(se$educ < 0, NA, se$educ)
 # also NA values!
 
 # plot ownership
+
+# WDswitch
+# insert Michiel's path to file here
 own <- read_dta(file.path(dataPath, "TZNPS2AGRDTA/AG_SEC3A.dta")) %>%
   dplyr::select(y2_hhid, plotnum, own=ag3a_24)
 
