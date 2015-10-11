@@ -264,16 +264,17 @@ se$yob <- as.integer(as.character(se$yob))
 
 # education
 ed <- read_dta(file.path(dataPath, "HH_SEC_C.dta")) %>%
-  select(y2_hhid, indidy2, start=hh_c04, end=hh_c08)
+  dplyr::select(y2_hhid, indidy2, start=hh_c04, end=hh_c08)
 
 ed$end <- as.integer(as.character(ed$end))
 ed$end <- ifelse(ed$end %in% 9999, NA, ed$end)
 
 # join se and ed to find years in school
-se <- left_join(se, ed) %>% select(-indidy2)
+se <- left_join(se, ed) %>% dplyr::select(-indidy2)
 rm("ed")
 
 se$educ <- se$end - (se$yob + se$start)
+se <- dplyr::select(se, -start, -end, -yob)
 
 # if anyone received negative years of schooling, set to NA
 se$educ <- ifelse(se$educ < 0, NA, se$educ)
@@ -283,7 +284,7 @@ se$educ <- ifelse(se$educ < 0, NA, se$educ)
 
 # plot ownership
 own <- read_dta(file.path(dataPath, "TZNPS2AGRDTA/AG_SEC3A.dta")) %>%
-  select(y2_hhid, plotnum, own=ag3a_24)
+  dplyr::select(y2_hhid, plotnum, own=ag3a_24)
 
 own$own <- ifelse(own$own %in% 1 | own$own %in% 5, 1, 0)
 
@@ -291,13 +292,18 @@ own$own <- ifelse(own$own %in% 1 | own$own %in% 5, 1, 0)
 ########### CROSS SECTION #############
 #######################################
 
+# joins at the plot level
 CS1 <- left_join(oput_maze, plot)
 CS1 <- left_join(CS1, lab)
 CS1 <- left_join(CS1, areas)
+CS1 <- left_join(CS1, own)
+
+# joins at the household level
 CS1 <- left_join(CS1, implmt)
 CS1 <- left_join(CS1, geo)
 CS1 <- left_join(CS1, rural)
-
+CS1 <- left_join(CS1, se)
+CS1 <- left_join(CS1, tc)
 
 rm(list=ls()[!ls() %in% "CS1"])
 

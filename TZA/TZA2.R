@@ -264,6 +264,7 @@ se <- left_join(se, ed) %>% select(-indidy3)
 rm("ed")
 
 se$educ <- se$end - (se$yob + se$start)
+se <- dplyr::select(se, -start, -end, -yob)
 
 # if anyone received negative years of schooling, set to NA
 se$educ <- ifelse(se$educ < 0, NA, se$educ)
@@ -280,12 +281,18 @@ own$own <- ifelse(own$own %in% 1 | own$own %in% 5, 1, 0)
 ########### CROSS SECTION #############
 #######################################
 
+# joins at the plot level
 CS2 <- left_join(oput_maze, plot)
 CS2 <- left_join(CS2, lab)
 CS2 <- left_join(CS2, areas)
+CS2 <- left_join(CS2, own)
+
+# joins at the household level
 CS2 <- left_join(CS2, implmt)
 CS2 <- left_join(CS2, geo)
 CS2 <- left_join(CS2, rural)
+CS2 <- left_join(CS2, se)
+CS2 <- left_join(CS2, tc)
 
 rm(list=ls()[!ls() %in% "CS2"])
 
