@@ -240,6 +240,41 @@ tc <- read_dta(file.path(dataPath, "AG_SEC_5A.dta")) %>%
 
 tc$trans <- ifelse(tc$trans %in% 1, 1, 0)
 
+#######################################
+########### SOCIO/ECONOMIC ############
+#######################################
+
+# insert Michiel's path to file here
+se <- read_dta(file.path(dataPath, "HH_SEC_B.dta")) %>%
+  filter(hh_b05 %in% 1) %>% # 1 for head of household
+  dplyr::select(y3_hhid, indidy3, sex=hh_b02, yob=hh_b03_1, age=hh_b04)
+
+se$sex <- ifelse(se$sex %in% 2, 1, 0)
+se$yob <- as.integer(as.character(se$yob))
+
+# education
+ed <- read_dta(file.path(dataPath, "HH_SEC_C.dta")) %>%
+  select(y3_hhid, indidy3, start=hh_c04, end=hh_c08)
+
+ed$end <- as.integer(as.character(ed$end))
+ed$end <- ifelse(ed$end %in% 9999, NA, ed$end)
+
+# join se and ed to find years in school
+se <- left_join(se, ed) %>% select(-indidy3)
+rm("ed")
+
+se$educ <- se$end - (se$yob + se$start)
+
+# if anyone received negative years of schooling, set to NA
+se$educ <- ifelse(se$educ < 0, NA, se$educ)
+
+# still some people have received a lot of schooling!!!!
+
+# plot ownership
+own <- read_dta(file.path(dataPath, "AG_SEC_3A.dta")) %>%
+  select(y3_hhid, plotnum, own=ag3a_25)
+
+own$own <- ifelse(own$own %in% 1 | own$own %in% 5, 1, 0)
 
 #######################################
 ########### CROSS SECTION #############
