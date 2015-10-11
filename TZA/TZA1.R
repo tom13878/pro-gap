@@ -240,6 +240,21 @@ implmt <- read_dta(file.path(dataPath, "TZNPS2AGRDTA/AG_SEC11.dta")) %>%
   summarise(value=sum(valu))
 
 #######################################
+########## TRANSPORT COSTS ############
+#######################################
+
+# insert Michiel's path to file
+tc <- read_dta(file.path(dataPath, "TZNPS2AGRDTA/AG_SEC5a.dta")) %>%
+  dplyr::filter(zaocode %in% 11) %>%
+  dplyr::select(y2_hhid, trans=ag5a_15, trans_dist=ag5a_16, trans_cost=ag5a_19)
+
+tc$trans <- ifelse(tc$trans %in% 1, 1, 0)
+
+#######################################
+########### SOCIO/ECONOMIC ############
+#######################################
+
+#######################################
 ########### CROSS SECTION #############
 #######################################
 

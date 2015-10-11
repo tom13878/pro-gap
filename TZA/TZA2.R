@@ -229,6 +229,17 @@ areas$y3_hhid <- as.character(areas$y3_hhid)
 areas$plotnum <- as.character(areas$plotnum)
 areas$area <- ifelse(areas$area %in% 0, NA, areas$area)
 
+#######################################
+########## TRANSPORT COSTS ############
+#######################################
+
+# insert Michiel's path to file
+tc <- read_dta(file.path(dataPath, "AG_SEC_5A.dta")) %>%
+  dplyr::filter(zaocode %in% 11) %>%
+  dplyr::select(y3_hhid, trans=ag5a_18, trans_dist=ag5a_19, trans_cost=ag5a_22)
+
+tc$trans <- ifelse(tc$trans %in% 1, 1, 0)
+
 
 #######################################
 ########### CROSS SECTION #############
