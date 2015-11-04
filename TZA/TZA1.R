@@ -198,15 +198,15 @@ rural$rural <- ifelse(rural$rural %in% 1, 1, 0)
 # WDswitch
 # geo <- read.csv(file.path(wdPath, "Analysis\\TZA\\Data\\TZA_geo_total_2010.csv"), stringsAsFactors=F) %>% 
 geo <- read.csv(file.path(dataPath, "TZA_geo_total_2010.csv"), stringsAsFactors=F) %>% 
-    dplyr::select(y2_hhid, lon, lat, plotnum, SPEI, RootDepth, region=NAME_1,
-         AEZ=land03, ph=ph_sd1_sd3, ph2=ph_sd1_sd5,
-         SOC=SOC_sd1_sd3, SOC2=SOC_sd1_sd5, rain=gsRainfall, 
-         plot01=dist01, dist01=dist02, dist02=dist03, dist03=dist04, dist04=dist05, dist05=dist06, 
-         clim02,clim04, clim05, 
-         soil01, soil02, soil03, soil04, soil05, soil06, soil07, soil08, soil09, soil10, soil11,
-         crops05, crops08, 
-         YA, YW, YP) %>%
-         unique()
+  dplyr::select(y2_hhid, lon, lat, plotnum, SPEI, RootDepth, region=NAME_1,
+                AEZ=land03, ph=ph_sd1_sd3, ph2=ph_sd1_sd5,
+                SOC=SOC_sd1_sd3, SOC2=SOC_sd1_sd5, rain=gsRainfall, 
+                plot01=dist01, dist01=dist02, dist02=dist03, dist03=dist04, dist04=dist05, dist05=dist06, 
+                clim02,clim04, clim05, 
+                soil01, soil02, soil03, soil04, soil05, soil06, soil07, soil08, soil09, soil10, soil11,
+                crops04, crops05, crops07, crops08, 
+                YA, YW, YP) %>%
+  unique()
 
 geo$AEZ <- as.factor(geo$AEZ)
 geo$y2_hhid <- as.character(geo$y2_hhid)
@@ -255,7 +255,7 @@ implmt <- read_dta(file.path(dataPath, "TZNPS2AGRDTA/AG_SEC11.dta")) %>%
 #######################################
 
 # WDswitch
-# insert Michiel's path to file here
+# tc <- read_dta(file.path(dataPath, "TZA\\2010\\Data\\TZNPS2AGRDTA/AG_SEC5a.dta")) %>%
 tc <- read_dta(file.path(dataPath, "TZNPS2AGRDTA/AG_SEC5a.dta")) %>%
   dplyr::filter(zaocode %in% 11) %>%
   dplyr::select(y2_hhid, trans=ag5a_15, trans_dist=ag5a_16, trans_cost=ag5a_19)
@@ -267,7 +267,7 @@ tc$trans <- ifelse(tc$trans %in% 1, 1, 0)
 #######################################
 
 # WDswitch
-# insert Michiel's path to file here
+# se <- read_dta(file.path(dataPath, "TZA\\2010\\Data\\TZNPS2HH1DTA\\HH_SEC_B.dta")) %>%
 se <- read_dta(file.path(dataPath, "HH_SEC_B.dta")) %>%
   filter(hh_b05 %in% 1) %>% # 1 for head of household
   dplyr::select(y2_hhid, indidy2, sex=hh_b02, yob=hh_b03_1, age=hh_b04)
@@ -277,7 +277,7 @@ se$yob <- as.integer(as.character(se$yob))
 
 # education
 # WDswitch
-# insert Michiel's path to file here
+# ed <- read_dta(file.path(dataPath, "TZA\\2010\\Data\\TZNPS2HH1DTA\\HH_SEC_C.dta")) %>%
 ed <- read_dta(file.path(dataPath, "HH_SEC_C.dta")) %>%
   dplyr::select(y2_hhid, indidy2, start=hh_c04, end=hh_c08)
 
@@ -300,7 +300,7 @@ se$educ <- ifelse(se$educ < 0, NA, se$educ)
 # plot ownership
 
 # WDswitch
-# insert Michiel's path to file here
+# own <- read_dta(file.path(dataPath, "TZA\\2010\\Data\\TZNPS2AGRDTA/AG_SEC3A.dta")) %>%
 own <- read_dta(file.path(dataPath, "TZNPS2AGRDTA/AG_SEC3A.dta")) %>%
   dplyr::select(y2_hhid, plotnum, own=ag3a_24)
 
@@ -365,8 +365,8 @@ CS1 <- mutate(CS1,
 )
 
 # save to file
-save(CS1, file=".\\Analysis\\TZA\\Data\\TZA10_data.RData")
-
+# save(CS1, file=".\\Analysis\\TZA\\Data\\TZA10_data.RData")
+save(CS1, file="C:/Users/Tomas/Documents/LEI/TZA10_data.RData")
 
 
 
