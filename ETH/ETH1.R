@@ -48,9 +48,39 @@ oput_maze <- oput[oput$crop %in% "MAIZE" & ! is.na(oput$qty) & !oput$qty %in% 0,
 
 rm("oput", "legumes")
 
+# -------------------------------------
+# get prices for the output, in a 
+# different section from quantities
+# very few people sell their maize.
+prc <- read_dta(file.path(dataPath, "Post-Harvest/sect11_ph_w2.dta")) %>%
+  select(household_id, crop_name, sold=ph_s11q01, qty_sold_kg=ph_s11q03_a,
+         qty_sold_g=ph_s11q03_b, prc=ph_s11q04) %>%
+  filter(crop_name %in% "MAIZE")
+
+
 #######################################
 ############## CHEMICAL ###############
 #######################################
+
+# -------------------------------------
+# Some plot specific variables are 
+# recorded at the parcel level, some
+# at the field level and othrs at the
+# crop level
+
+parcel <- read_dta(file.path(dataPath, "Post-Planting/sect2_pp_w2.dta")) %>%
+  select(household_id, parcel_id, soil_type=pp_s2q14, soil_qlty=pp_s2q15)
+
+field <- read_dta(file.path(dataPath, "Post-Planting/sect3_pp_w2.dta")) %>%
+  select(household_id, parcel_id, field_id, cropping=pp_s3q03b, fallow10=pp_s3q03c,
+         fallow_year=pp_s3q03d, irrig=pp_s3q12, fert_any=pp_s3q14, manure=pp_s3q21,
+         compost=pp_s3q23, other_organic=pp_s3q25, erosprot=pp_s3q32)
+
+crop <- read_dta(file.path(dataPath, "Post-Planting/sect4_pp_w2.dta")) %>%
+  select(household_id, parcel_id, field_id, crop_code, cropping=pp_s4q02,
+         crop_area=pp_s4q03, herb=pp_s4q06, fung=pp_s4q07, seed_type=pp_s4q11,
+         seed_qty=pp_s4q11b)
+  
 
 # -------------------------------------
 # unit of observation is not fertilizer
@@ -69,7 +99,7 @@ fert2$purch <- ifelse(fert2$purch %in% 1, 1, 0)
 
 # -------------------------------------
 # nitrogen conversions from Michiel's 
-# database
+# csv file
 
 typ <- c("DAP", "UREA")
 n <- c(0.18, 0.46)
@@ -104,6 +134,7 @@ fert <- group_by(fert, household_id, parcel_id, field_id) %>%
   summarise(N=sum(Qn, na.rm=TRUE),
             WPn=sum((Qn/N)*Pn, na.rm=TRUE)) %>%
   mutate(WPn = replace(WPn, WPn==0, NA))
+
 
 #######################################
 ############### LABOUR ################
@@ -183,7 +214,19 @@ geo <- read_dta(file.path(dataPath, "Geodata/Pub_ETH_HouseholdGeovars_Y2.dta")) 
 ############### AREAs #################
 #######################################
 
-areas <- read_dta(file.path(dataPath, "Post-Planting/sect_3rcb_pp_w2.dta"))
+# -------------------------------------
+# some NA values in the gps measurements
+
+areas <- read_dta(file.path(dataPath, "Post-Planting/sect3_pp_w2.dta")) %>%
+  select(area_sr=pp_s3q02_a, area_sr_unit=pp_s3q02_c, area_gps=pp_s3q05_a)
+
+#######################################
+########### SOCIO/ECONOMIC ############
+#######################################
+
+own <- read_dta(file.path(dataPath, "Post-Planting/sect2_pp_w2.dta")) %>%
+  select(household_id, parcel_id, cert=pp_s2q04)
+own$cert <- ifelse(own$cert %in% 1, 1, 0)  
   
               
 #######################################
