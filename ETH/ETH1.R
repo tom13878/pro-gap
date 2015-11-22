@@ -47,16 +47,15 @@ oput_maze <- dplyr::select(oput_maze, -crop)
 rm("oput", "legumes")
 
 # -------------------------------------
-# get prices for the output, in a 
-# different section from quantities
+# The value received for maize is in a
+# different section of the questionnaire.
 # very few farmers record the price they
-# received for their maize
+# received for maize sold.
 
 # prc <- read_dta(file.path(dataPath, "Post-Harvest/sect11_ph_w2.dta")) %>%
 #   select(household_id, crop_name, sold=ph_s11q01, qty_sold_kg=ph_s11q03_a,
 #          qty_sold_g=ph_s11q03_b, prc=ph_s11q04) %>%
 #   filter(crop_name %in% "MAIZE")
-# 
 
 # # check how many prices available for maize
 # sum(!is.na(prc$prc)) # 303
@@ -67,12 +66,13 @@ rm("oput", "legumes")
 
 # -------------------------------------
 # variables recorded at parcel, field,
-# plot and crop level
+# and crop level
 
 # parcel level
 # WDswitch
 parcel <- read_dta(file.path(dataPath, "Post-Planting/sect2_pp_w2.dta")) %>%
   dplyr::select(household_id, parcel_id, soil_type=pp_s2q14, soil_qlty=pp_s2q15) %>%
+  filter(!(household_id %in% "")) %>%
   unique()
 
 parcel$soil_type <- as_factor(parcel$soil_type)
@@ -84,6 +84,7 @@ field <- read_dta(file.path(dataPath, "Post-Planting/sect3_pp_w2.dta")) %>%
   dplyr::select(household_id, parcel_id, field_id, inter_crop=pp_s3q03b, fallow10=pp_s3q03c,
          fallow_year=pp_s3q03d, irrig=pp_s3q12, fert_any=pp_s3q14, manure=pp_s3q21,
          compost=pp_s3q23, other_org=pp_s3q25, eros_prot=pp_s3q32) %>%
+  filter(!(household_id %in% "")) %>%
   unique()
 
 field$inter_crop <- ifelse(field$inter_crop %in% 2, 1, 0)
@@ -100,7 +101,9 @@ field$eros_prot <- ifelse(field$eros_prot %in% 1, 1, 0)
 crop <- read_dta(file.path(dataPath, "Post-Planting/sect4_pp_w2.dta")) %>%
   dplyr::select(household_id, parcel_id, field_id, crop=crop_code, cropping=pp_s4q02,
          crop_area=pp_s4q03, herb=pp_s4q06, fung=pp_s4q07, seed_type=pp_s4q11,
-         seed_qty=pp_s4q11b) %>% unique()
+         seed_qty=pp_s4q11b) %>% 
+  filter(!(household_id %in% "")) %>% 
+  unique()
 
 crop$crop <- as_factor(crop$crop)
 crop$cropping <- as_factor(crop$cropping)
@@ -117,14 +120,17 @@ crop <- filter(crop, crop %in% "MAIZE") %>% select(-crop)
 # WDswitch
 fert1 <- read_dta(file.path(dataPath, "Post-Planting/sect3_pp_w2.dta")) %>%
   dplyr::select(household_id, parcel_id, field_id, typ=pp_s3q15, qty=pp_s3q16_a,
-                purch=pp_s3q16b, purch_kg=pp_s3q16c, valu=pp_s3q16d)
+                purch=pp_s3q16b, purch_kg=pp_s3q16c, valu=pp_s3q16d) %>%
+  filter(!(household_id %in% ""))
+  
 fert1$typ <- ifelse(fert1$typ %in% 1, "UREA", NA)
 fert1$purch <- ifelse(fert1$purch %in% 1, 1, 0)
 
 # WDswitch  
 fert2 <- read_dta(file.path(dataPath, "Post-Planting/sect3_pp_w2.dta")) %>%
   dplyr::select(household_id, parcel_id, field_id, typ=pp_s3q18, qty=pp_s3q19_a,
-                purch=pp_s3q19b, purch_kg=pp_s3q19c, valu=pp_s3q19d) 
+                purch=pp_s3q19b, purch_kg=pp_s3q19c, valu=pp_s3q19d) %>%
+  filter(!(household_id %in% "")) 
 fert2$typ <- ifelse(fert2$typ %in% 1, "DAP", NA)
 fert2$purch <- ifelse(fert2$purch %in% 1, 1, 0)
 
@@ -173,15 +179,6 @@ fert <- group_by(fert, household_id, parcel_id, field_id) %>%
             WPn=sum((Qn/N)*Pn, na.rm=TRUE)) %>%
   mutate(WPn = replace(WPn, WPn==0, NA))
 
-# -------------------------------------
-# join fert with the rest of the data
-# at the field level and join the crop
-# variables with oput_maze to make a 
-# cross section
-
-# plot <- left_join(parcel, field)
-# plot <- left_join(plot, fert) %>% unique()
-
 rm(fert1, fert2, comp, n, p, typ)
 
 #######################################
@@ -192,6 +189,7 @@ rm(fert1, fert2, comp, n, p, typ)
 # WDswitch
 lab1 <- read_dta(file.path(dataPath, "Post-Planting/sect3_pp_w2.dta")) %>%
   dplyr::select(household_id, parcel_id, field_id, pp_s3q27_a:pp_s3q29_f) %>%
+  filter(!(household_id %in% "")) %>%
   transmute(household_id, parcel_id, field_id,
             id1=pp_s3q27_a, lab1=pp_s3q27_b*pp_s3q27_c,
             id2=pp_s3q27_e, lab2=pp_s3q27_f*pp_s3q27_g,
@@ -218,6 +216,7 @@ lab1 <- transmute(lab1, household_id, parcel_id, field_id,
 # WDswitch
 lab2 <- read_dta(file.path(dataPath, "Post-Harvest/sect10_ph_w2.dta")) %>%
   dplyr::select(household_id, parcel_id, field_id, crop=crop_code, ph_s10q01_a:ph_s10q03_f) %>%
+  filter(!(household_id %in% "")) %>%
   transmute(household_id, parcel_id, field_id, crop,
             id1=ph_s10q02_a, lab1=ph_s10q02_b*ph_s10q02_c,
             id2=ph_s10q02_e, lab2=ph_s10q02_f*ph_s10q02_g,
@@ -275,7 +274,7 @@ lab2 <- transmute(lab2, household_id, parcel_id, field_id,
 # WDswitch
 geo <- read_dta(file.path(dataPath, "Geodata/Pub_ETH_HouseholdGeovars_Y2.dta")) %>%
   dplyr::select(household_id, lon=lon_dd_mod, lat=lat_dd_mod) %>%
-  unique()
+  filter(!(household_id %in% ""))
 
 
 #######################################
@@ -286,12 +285,13 @@ geo <- read_dta(file.path(dataPath, "Geodata/Pub_ETH_HouseholdGeovars_Y2.dta")) 
 # some NA values in the gps measurements
 # WDswitch
 areas <- read_dta(file.path(dataPath, "Post-Planting/sect3_pp_w2.dta")) %>%
-  select(household_id, parcel_id, field_id, area_sr=pp_s3q02_a,
-         area_sr_unit=pp_s3q02_c, area_gps=pp_s3q05_a)
+  dplyr::select(household_id, parcel_id, field_id, area_sr=pp_s3q02_a,
+         area_sr_unit=pp_s3q02_c, area_gps=pp_s3q05_a) %>%
+  filter(!(household_id %in% ""))
 
 # take self reported areas out, but may need them for
 # imputation
-areas <- select(areas, -area_sr_unit, -area_sr, area=area_gps)
+areas <- dplyr::select(areas, -area_sr_unit, -area_sr, area=area_gps)
 
 # -------------------------------------
 # area measurement in square metres
@@ -305,14 +305,16 @@ areas$area_gps <- areas$area*0.0001
 # WDswitch
 se <- read_dta(file.path(dataPath, "Household/sect1_hh_w2.dta")) %>%
   filter(hh_s1q02 %in% 1) %>% # 1 for head of household
-  dplyr::select(household_id, sex=hh_s1q03, age=hh_s1q04_a)
+  dplyr::select(household_id, sex=hh_s1q03, age=hh_s1q04_a) %>%
+  filter(!(household_id %in% ""))
 
 se$sex <- ifelse(se$sex %in% 2, 1, 0)
 
 # ownership of a parcel
 # WDswitch
 own <- read_dta(file.path(dataPath, "Post-Planting/sect2_pp_w2.dta")) %>%
-  dplyr::select(household_id, parcel_id, cert=pp_s2q04)
+  dplyr::select(household_id, parcel_id, cert=pp_s2q04) %>%
+  filter(!(household_id %in% ""))
 own$cert <- ifelse(own$cert %in% 1, 1, 0)  
   
 #######################################
@@ -321,22 +323,22 @@ own$cert <- ifelse(own$cert %in% 1, 1, 0)
 
 # crop level merge
 CS1 <- left_join(oput_maze, crop) %>% unique()
+CS1 <- left_join(CS1, lab2) %>% unique()
 
 # field level merge
 # because of crop level data
 CS1 <- left_join(CS1, fert) %>% unique()
 CS1 <- left_join(CS1, areas) %>% unique()
 CS1 <- left_join(CS1, lab1) %>% unique()
-CS1 <- left_join(CS1, lab2) %>% unique()
-# CS1 <- left_join(CS1, field) %>% unique()
+CS1 <- left_join(CS1, field) %>% unique()
 
 # parcel level merge
-# CS1 <- left_join(CS1, parcel) %>% unique()
+CS1 <- left_join(CS1, parcel) %>% unique()
 CS1 <- left_join(CS1, own) %>% unique()
 
 # household level merge
-CS1 <- left_join(CS1, geo)
-CS1 <- left_join(CS1, se)
+CS1 <- left_join(CS1, geo) %>% unique()
+CS1 <- left_join(CS1, se) %>% unique()
 
 
 # -------------------------------------
@@ -344,13 +346,6 @@ CS1 <- left_join(CS1, se)
 # -------------------------------------
 
 CS1 <- ddply(CS1, .(household_id), transform, area_tot=sum(area))
-
-# if there is an NA value for any type of
-# asset set to zero to calculate total assets per plot
-
-# CS1$implmt_value <- ifelse(is.na(CS1$implmt_value), 0, CS1$implmt_value)
-# CS1$lvstk_valu <- ifelse(is.na(CS1$lvstk_valu), 0, CS1$lvstk_valu)
-# CS1$lvstk2_valu <- ifelse(is.na(CS1$lvstk2_valu), 0, CS1$lvstk2_valu)
 
 # per hectacre
 CS1 <- mutate(CS1,
