@@ -321,24 +321,62 @@ own$cert <- ifelse(own$cert %in% 1, 1, 0)
 ########### CROSS SECTION #############
 #######################################
 
-# crop level merge
-CS1 <- left_join(oput_maze, crop) %>% unique()
-CS1 <- left_join(CS1, lab2) %>% unique()
+# JOINING - first join at the maize output
+# to the household data at teh household level
+# Next, join the parcel level data by pasting
+# household and parcel id together. Finally,
+# paste the field id to the new id to join with
+# field level data
 
-# field level merge
-# because of crop level data
-CS1 <- left_join(CS1, fert) %>% unique()
-CS1 <- left_join(CS1, areas) %>% unique()
-CS1 <- left_join(CS1, lab1) %>% unique()
-CS1 <- left_join(CS1, field) %>% unique()
+# start with household level joins
+
+CS1 <- left_join(oput_maze, geo) %>% unique()
+CS1 <- left_join(CS1, se) %>% unique()
+
+# now paste  household and pacel id for parcel
+# level joins.
+
+CS1$id <- paste0(CS1$household_id, CS1$parcel_id)
+parcel$id <- paste0(parcel$household_id, parcel$parcel_id)
+own$id <- paste0(own$household_id, own$parcel_id)
+
+CS1$household_id <- CS1$parcel_id <- NULL
+parcel$household_id <- parcel$parcel_id <- NULL
+own$household_id <- own$parcel_id <- NULL
 
 # parcel level merge
 CS1 <- left_join(CS1, parcel) %>% unique()
 CS1 <- left_join(CS1, own) %>% unique()
 
-# household level merge
-CS1 <- left_join(CS1, geo) %>% unique()
-CS1 <- left_join(CS1, se) %>% unique()
+# now join household, parcel and field ids together
+CS1$id <- paste0(CS1$id, CS1$field_id)
+fert$id <- paste0(fert$household_id, fert$parcel_id, fert$field_id)
+areas$id <- paste0(areas$household_id, areas$parcel_id, areas$field_id)
+lab1$id <- paste0(lab1$household_id, lab1$parcel_id, lab1$field_id)
+field$id <- paste0(field$household_id, field$parcel_id, field$field_id)
+
+fert$household_id <- fert$parcel_id <- fert$field_id <- NULL
+areas$household_id <- areas$parcel_id <- areas$field_id <-  NULL
+lab1$household_id <- lab1$parcel_id <- lab1$field_id <- NULL
+field$household_id <- field$parcel_id <- field$field_id <- NULL
+
+# field level merge
+CS1 <- left_join(CS1, fert) %>% unique()
+CS1 <- left_join(CS1, areas) %>% unique()
+CS1 <- left_join(CS1, lab1) %>% unique()
+CS1 <- left_join(CS1, field) %>% unique()
+
+# finally paste together household, parcel andd
+# field ids to join at teh crop level
+
+crop$id <- paste0(crop$household_id, crop$parcel_id, crop$field_id)
+lab2$id <- paste0(lab2$household_id, lab2$parcel_id, lab2$field_id)
+
+crop$household_id <- crop$parcel_id <- crop$field_id <- NULL
+lab2$household_id <- lab2$parcel_id <- lab2$field_id <-  NULL
+
+CS1 <- left_join(CS1, crop) %>% unique()
+CS1 <- left_join(CS1, lab2) %>% unique()
 
 
 # -------------------------------------
