@@ -321,63 +321,81 @@ own$cert <- ifelse(own$cert %in% 1, 1, 0)
 ########### CROSS SECTION #############
 #######################################
 
-# JOINING - first join at the maize output
-# to the household data at teh household level
-# Next, join the parcel level data by pasting
-# household and parcel id together. Finally,
-# paste the field id to the new id to join with
-# field level data
+# -------------------------------------
+# Because of the problems with joining the
+# data the following code first shows all
+# observations for each dataset where ther
+# are duplicated observations, and then
+# removes all observations where there are
+# duplicates.
 
-# start with household level joins
+# remove duplications from crop data
+t <- group_by(crop, household_id, parcel_id, field_id) %>% summarise(n=n())
+t2 <- t[t$n > 1, ]
+bad <- t2$household_id
+crop <- crop[!crop$household_id %in% bad,]
 
-CS1 <- left_join(oput_maze, geo) %>% unique()
-CS1 <- left_join(CS1, se) %>% unique()
+# remove duplications from lab2 data
+t <- group_by(lab2, household_id, parcel_id, field_id) %>% summarise(n=n())
+t2 <- t[t$n > 1, ]
+bad <- t2$household_id
+lab2 <- lab2[!lab2$household_id %in% bad,]
 
-# now paste  household and pacel id for parcel
-# level joins.
+# remove duplications from areas data
+t <- group_by(areas, household_id, parcel_id, field_id) %>% summarise(n=n())
+t2 <- t[t$n > 1, ]
+bad <- t2$household_id
+areas <- areas[!areas$household_id %in% bad,]
 
-CS1$id <- paste0(CS1$household_id, CS1$parcel_id)
-parcel$id <- paste0(parcel$household_id, parcel$parcel_id)
-own$id <- paste0(own$household_id, own$parcel_id)
+# remove duplications from lab1 data
+t <- group_by(lab1, household_id, parcel_id, field_id) %>% summarise(n=n())
+t2 <- t[t$n > 1, ]
+bad <- t2$household_id
+lab1 <- lab1[!lab1$household_id %in% bad,]
 
-CS1$household_id <- CS1$parcel_id <- NULL
-parcel$household_id <- parcel$parcel_id <- NULL
-own$household_id <- own$parcel_id <- NULL
+# remove duplications from field data
+t <- group_by(field, household_id, parcel_id, field_id) %>% summarise(n=n())
+t2 <- t[t$n > 1, ]
+bad <- t2$household_id
+field <- field[!field$household_id %in% bad,]
 
-# parcel level merge
-CS1 <- left_join(CS1, parcel) %>% unique()
-CS1 <- left_join(CS1, own) %>% unique()
+# remove duplications from parcel data
+t <- group_by(parcel, household_id, parcel_id) %>% summarise(n=n())
+t2 <- t[t$n > 1, ]
+bad <- t2$household_id
+parcel <- parcel[!parcel$household_id %in% bad,]
 
-# now join household, parcel and field ids together
-CS1$id <- paste0(CS1$id, CS1$field_id)
-fert$id <- paste0(fert$household_id, fert$parcel_id, fert$field_id)
-areas$id <- paste0(areas$household_id, areas$parcel_id, areas$field_id)
-lab1$id <- paste0(lab1$household_id, lab1$parcel_id, lab1$field_id)
-field$id <- paste0(field$household_id, field$parcel_id, field$field_id)
+# remove duplications from own data
+t <- group_by(own, household_id, parcel_id) %>% summarise(n=n())
+t2 <- t[t$n > 1, ]
+bad <- t2$household_id
+own <- own[!own$household_id %in% bad,]
 
-fert$household_id <- fert$parcel_id <- fert$field_id <- NULL
-areas$household_id <- areas$parcel_id <- areas$field_id <-  NULL
-lab1$household_id <- lab1$parcel_id <- lab1$field_id <- NULL
-field$household_id <- field$parcel_id <- field$field_id <- NULL
+# -------------------------------------
+# crop level joins
 
-# field level merge
-CS1 <- left_join(CS1, fert) %>% unique()
-CS1 <- left_join(CS1, areas) %>% unique()
-CS1 <- left_join(CS1, lab1) %>% unique()
-CS1 <- left_join(CS1, field) %>% unique()
+CS1 <- left_join(oput_maze, crop) 
+CS1 <- left_join(CS1, lab2)
 
-# finally paste together household, parcel andd
-# field ids to join at teh crop level
+# -------------------------------------
+# field level joins
 
-crop$id <- paste0(crop$household_id, crop$parcel_id, crop$field_id)
-lab2$id <- paste0(lab2$household_id, lab2$parcel_id, lab2$field_id)
+CS1 <- left_join(CS1, fert) 
+CS1 <- left_join(CS1, areas)
+CS1 <- left_join(CS1, lab1) 
+CS1 <- left_join(CS1, field)
 
-crop$household_id <- crop$parcel_id <- crop$field_id <- NULL
-lab2$household_id <- lab2$parcel_id <- lab2$field_id <-  NULL
+# -------------------------------------
+# parcel level joins
 
-CS1 <- left_join(CS1, crop) %>% unique()
-CS1 <- left_join(CS1, lab2) %>% unique()
+CS1 <- left_join(CS1, parcel)
+CS1 <- left_join(CS1, own) 
 
+# -------------------------------------
+# household level joins
+
+CS1 <- left_join(CS1, geo)
+CS1 <- left_join(CS1, se)
 
 # -------------------------------------
 # Make some new variables
@@ -391,3 +409,4 @@ CS1 <- mutate(CS1,
               N=N/area,
               P=P/area
 )
+
