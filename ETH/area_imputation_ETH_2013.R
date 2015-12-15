@@ -50,8 +50,7 @@ plots <- left_join(plots, plotCount)
 
 parcel <- read_dta(file.path(dataPath, "Post-Planting/sect2_pp_w2.dta")) %>%
   dplyr::select(holder_id, household_id, parcel_id, soil_qlty=pp_s2q15) %>%
-  filter(!(household_id %in% "")) %>%
-  unique()
+  filter(!(household_id %in% "")) 
 
 parcel$soil_qlty <- as_factor(parcel$soil_qlty)
 parcel$soil_qlty <- relevel(parcel$soil_qlty, ref = "Poor")
@@ -109,17 +108,35 @@ hir_lab <- rbind(pp_lab, ph_lab) %>%
 
 plots <- left_join(plots, hir_lab)
 
+rm(list=ls()[!ls() %in% c("plots", "dataPath"])
+
 # -------------------------------------
 # household characteristics
 
-# rural
-rural <- read_dta(file.path(dataPath, "Household/sect1_hh_w2.dta")) %>%
-  dplyr::select(household_id, rural) %>% unique
+# plot manager characteristics
 
+pmc <- read_dta(file.path(dataPath, "Household/sect1_hh_w2.dta")) %>%
+  filter(hh_s1q02 %in% 1) %>% # 1 for head of household
+  dplyr::select(household_id, individual_id, sex=hh_s1q03, age=hh_s1q04_a, rural, weight=pw2) %>%
+  filter(!(household_id %in% ""))
+
+pmc$sex <- ifelse(pmc$sex %in% 2, 1, 0)
 rural$rural <- ifelse(rural$rural %in% 1, 1, 0)
 
+# education
+
+education <- read_dta(file.path(dataPath, "household/sect2_hh_w2.dta")) %>%
+  dplyr::select(household_id, individual_id, educ = hh_s2q05) %>%
+  filter(!(household_id %in% ""))
+
+education$educ <- as_factor(education$educ)
+
+# Join the information on the plot manager
+
+pmc <- left_join(pmc, education)
+
 # count number of people of each age group in
-# the husehold
+# the household
 
 ag <- read_dta(file.path(dataPath, "Household/sect1_hh_w2.dta")) %>%
   dplyr::select(household_id, individual_id, age=hh_s1q04_a, sex=hh_s1q03) %>%
@@ -150,19 +167,10 @@ by_hhid <- group_by(ag, household_id) %>% summarise(
   female40_59 = sum(female40_59, na.rm = TRUE),
   g5l15 = sum(g5l15, na.rm = TRUE))
 
-# join the age group information with the
-# age and sex of the plot manager (assumed
-# to be the household head)
-
-pmc <- read_dta(file.path(dataPath, "Household/sect1_hh_w2.dta")) %>%
-  filter(hh_s1q02 %in% 1) %>% # 1 for head of household
-  dplyr::select(household_id, sex=hh_s1q03, age=hh_s1q04_a) %>%
-  filter(!(household_id %in% ""))
-
-pmc$sex <- ifelse(pmc$sex %in% 2, 1, 0)
+# join with plot manager information to get the 
+# household characteristics (hc)
 
 hc <- left_join(pmc, by_hhid)
-
 
 # ------------------------------------
 # interaction variables (sr-area w/ plots
@@ -173,10 +181,3 @@ areas <- read_dta(file.path(dataPath, "Post-Planting/sect3_pp_w2.dta")) %>%
   dplyr::select(holder_id, household_id, parcel_id, field_id, area_sr=pp_s3q02_a,
                 area_sr_unit=pp_s3q02_c, area_gps=pp_s3q05_a) %>%
   filter(!(household_id %in% ""))
-
-# sample weight
-
-weight <- read_dta(file.path(dataPath, "Household/sect1_hh_w2.dta")) %>%
-  dplyr::select(household_id, weight=pw2) %>% unique
-
-# could add education level as an ordered factor somewhere
