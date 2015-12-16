@@ -278,15 +278,16 @@ geo <- read_dta(file.path(dataPath, "Geodata/Pub_ETH_HouseholdGeovars_Y2.dta")) 
 # imputed and original gps measurements
 # included
 # WDswitch
-areas <- read.csv(paste(dataPath, "areas_ETH2013.csv", sep="/"))
+areas <- read_dta(paste(dataPath, "areas_ETH2013.dta", sep="/"))
 areas <- select(areas, holder_id, household_id2,
                 parcel_id, field_id, area_gps, area_gps_mi50)
 
-add0 <- str_length(areas$holder_id) == 15
-areas$holder_id <- ifelse(add0, paste0("0", areas$holder_id), areas$holder_id)
+areas$area_gps <- ifelse(areas$area_gps %in% 0, NA, areas$area_gps)
+areas$area_gps_mi50 <- ifelse(areas$area_gps_mi50 %in% 0, NA, areas$area_gps_mi50)
 
-add0 <- str_length(areas$household_id2) == 17
-areas$household_id2 <- ifelse(add0, paste0("0", areas$household_id2), areas$household_id2)
+areaTotal <- group_by(areas, household_id2) %>%
+  summarise(area_tot = sum(area_gps_mi50, na.rm=TRUE))
+  
 
 #######################################
 ########### SOCIO/ECONOMIC ############
@@ -336,18 +337,17 @@ data2013 <- left_join(data2013, own)
 
 data2013 <- left_join(data2013, geo)
 data2013 <- left_join(data2013, se)
+data2013 <- left_join(data2013, areaTotal)
 
 # -------------------------------------
 # Make some new variables
 # -------------------------------------
 
-data2013 <- ddply(data2013, .(holder_id, household_id2), transform, area_tot=sum(area))
-
 # per hectacre
 data2013 <- mutate(data2013,
-              yld=qty/area,
-              N=N/area,
-              P=P/area
+              yld=qty/area_gps_mi50,
+              N=N/area_gps_mi50,
+              P=P/area_gps_mi50
 )
 
 rm(list=ls()[!ls() %in% "data2013"])
