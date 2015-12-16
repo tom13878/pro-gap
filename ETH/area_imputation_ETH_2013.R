@@ -277,13 +277,14 @@ library(lattice)
 
 # kill of household id and plotnum. These can't go into the 
 # imputation
+
 ids <- impData[, c("holder_id","household_id2", "parcel_id","field_id")]
 impData$holder_id <- impData$household_id2 <-
   impData$parcel_id <- impData$field_id <-
   impData$individual_id <- NULL
 
-# following functions give an overview of the missingness in
-# our data
+# following functions give an overview of the
+# missingness in our data
 
 md.pairs(impData)
 md.pattern(impData)
@@ -291,6 +292,7 @@ marginplot(impData[, c("area_sr", "area_gps")], col=c('blue', 'red', 'orange'))
 
 # create interaction variables to include in the 
 # imputation
+
 
 
 # MICE imputation method
@@ -309,6 +311,6 @@ areas <- cbind(ids, areas)
 
 # save areas to a file
 
-write.csv(areas, "C:/Users/Tomas/Documents/LEI/data/ETH/areas_ETH2013.csv", row.names=FALSE)
+write_dta(areas, "C:/Users/Tomas/Documents/LEI/data/ETH/areas_ETH2013.dta")
 
 
