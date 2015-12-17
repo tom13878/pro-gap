@@ -49,8 +49,10 @@ plots <- left_join(plots, plotCount)
 # soil quality is a parcel level variable
 
 parcel <- read_dta(file.path(dataPath, "Post-Planting/sect2_pp_w2.dta")) %>%
-  dplyr::select(holder_id, household_id2, parcel_id, soil_qlty=pp_s2q15)
+  dplyr::select(holder_id, household_id2, parcel_id,
+                owned = pp_s2q04, soil_qlty=pp_s2q15)
 
+parcel$owned <- ifelse(parcel$owned %in% 1, 1, 0)
 parcel$soil_qlty <- as_factor(parcel$soil_qlty)
 parcel$soil_qlty <- relevel(parcel$soil_qlty, ref = "Poor")
 
@@ -293,7 +295,16 @@ marginplot(impData[, c("area_sr", "area_gps")], col=c('blue', 'red', 'orange'))
 # create interaction variables to include in the 
 # imputation
 
-
+impData <- mutate(impData,
+                  area_sr2 = area_sr^2,
+                  area_sr3 = area_sr^3,
+                  area_sr_rural = area_sr*rural,
+                  area_sr_sex = area_sr*sex,
+                  area_sr_rented = area_sr*rented,
+                  area_sr_fallowed = area_sr*fallowed,
+                  area_sr_age = area_sr*age,
+                  area_sr_owned = area_sr*owned
+                  )
 
 # MICE imputation method
 
