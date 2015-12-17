@@ -10,7 +10,6 @@ dataPath <- "C:/Users/Tomas/Documents/LEI/data/ETH"
 
 library(haven)
 library(stringr)
-library(plyr)
 library(dplyr)
 
 options(scipen=999)
@@ -33,29 +32,18 @@ oput$crop <- as_factor(oput$crop)
 
 legumes <- c("CHICK PEAS", "HARICOT BEANS", "HORSE BEANS", "LENTILS",
              "FIELD PEAS", "VETCH", "GIBTO", "SOYA BEANS", "CASTOR BEANS")
-oput <- ddply(oput, .(holder_id, household_id2, parcel_id, field_id), transform,
-              crop_count=length(crop[!is.na(crop)]),
-              legume=ifelse(any(crop %in% legumes), 1, 0))
+
+oput_x <- group_by(oput, holder_id, household_id2, parcel_id, field_id) %>%
+  summarise(crop_count=sum(!is.na(crop)),
+            legume = ifelse(any(crop %in% legumes), 1, 0))
+
+oput <- left_join(oput, oput_x); rm(oput_x)
 
 # select on maize and remove observations with quantity NA or 0
 oput_maize <- oput[oput$crop %in% "MAIZE" & ! is.na(oput$qty) & !oput$qty %in% 0,]
 oput_maize <- dplyr::select(oput_maize, -crop)
 
 rm("oput", "legumes")
-
-# -------------------------------------
-# The value received for maize is in a
-# different section of the questionnaire.
-# very few farmers record the price they
-# received for maize sold.
-
-prc <- read_dta(file.path(dataPath, "Post-Harvest/sect11_ph_w2.dta")) %>%
-   select(holder_id, household_id2, crop_name, sold=ph_s11q01, qty_sold_kg=ph_s11q03_a,
-          qty_sold_g=ph_s11q03_b, prc=ph_s11q04) %>%
-   filter(crop_name %in% "MAIZE")
-
-# check how many prices available for maize
-sum(!is.na(prc$prc)) # 303
 
 #######################################
 ############## CHEMICAL ###############
@@ -184,46 +172,56 @@ rm(fert1, fert2, comp, n, p, typ)
 ############### LABOUR ################
 #######################################
 
-# POST PLANTING
+# POST PLANTING labour
 # WDswitch
-lab1 <- read_dta(file.path(dataPath, "Post-Planting/sect3_pp_w2.dta")) %>%
+pp_lab <- read_dta(file.path(dataPath, "Post-Planting/sect3_pp_w2.dta")) %>%
   dplyr::select(holder_id, household_id2, parcel_id, field_id, pp_s3q27_a:pp_s3q29_f) %>%
   transmute(holder_id, household_id2, parcel_id, field_id,
             id1=pp_s3q27_a, lab1=pp_s3q27_b*pp_s3q27_c,
             id2=pp_s3q27_e, lab2=pp_s3q27_f*pp_s3q27_g,
             id3=pp_s3q27_i, lab3=pp_s3q27_j*pp_s3q27_k,
             id4=pp_s3q27_m, lab4=pp_s3q27_n*pp_s3q27_o,
+            id5=pp_s3q27_q, lab5=pp_s3q27_r*pp_s3q27_s,
+            id6=pp_s3q27_u, lab6=pp_s3q27_v*pp_s3q27_w,
+            id7=pp_s3q27_y, lab7=pp_s3q27_z*pp_s3q27_ca,
             hirM=pp_s3q28_a*pp_s3q28_b,
             hirF=pp_s3q28_d*pp_s3q28_e,
             hirC=pp_s3q28_g*pp_s3q28_h,
-            OHHlabM=pp_s3q29_b,
-            OHHlabF=pp_s3q29_d,
-            OHHlabC=pp_s3q29_f
+            OHHlabM=pp_s3q29_a*pp_s3q29_b,
+            OHHlabF=pp_s3q29_c*pp_s3q29_d,
+            OHHlabC=pp_s3q29_e*pp_s3q29_f
             )
 
 # make all NA values zero
-lab1[is.na(lab1)] <- 0
+pp_lab[is.na(pp_lab)] <- 0
 
 # sum all labour across a single plot - all measured in days
-lab1 <- transmute(lab1, holder_id, household_id2, parcel_id, field_id,
-                  plant_lab=lab1 + lab2 + lab3 + lab4 +
+pp_lab <- transmute(pp_lab, holder_id, household_id2, parcel_id, field_id,
+                  plant_lab=lab1 + lab2 + lab3 + lab4 + lab5 + lab6 + lab7 +
                     hirM + hirF + hirC + OHHlabM + OHHlabF + OHHlabC)
+
+# presumably if crop was planted then some labour
+# was used. Therefore set all 0's for plant_lab
+# to NA
+
+pp_lab$plant_lab[pp_lab$plant_lab %in% 0] <- NA
 
 # POST HARVEST
 # WDswitch
-lab2 <- read_dta(file.path(dataPath, "Post-Harvest/sect10_ph_w2.dta")) %>%
-  dplyr::select(holder_id, household_id2, parcel_id, field_id, crop=crop_code, ph_s10q01_a:ph_s10q03_f) %>%
+ph_lab <- read_dta(file.path(dataPath, "Post-Harvest/sect10_ph_w2.dta")) %>%
+  dplyr::select(holder_id, household_id2, parcel_id, field_id,
+                crop=crop_code, ph_s10q01_a:ph_s10q03_f) %>%
   transmute(holder_id, household_id2, parcel_id, field_id, crop,
             id1=ph_s10q02_a, lab1=ph_s10q02_b*ph_s10q02_c,
             id2=ph_s10q02_e, lab2=ph_s10q02_f*ph_s10q02_g,
             id3=ph_s10q02_i, lab3=ph_s10q02_j*ph_s10q02_k,
             id4=ph_s10q02_m, lab4=ph_s10q02_n*ph_s10q02_o,
-            hirM=ph_s10q01_b,
-            hirF=ph_s10q01_e,
-            hirC=ph_s10q01_h,
-            OHHlabM=ph_s10q03_b,
-            OHHlabF=ph_s10q03_d,
-            OHHlabC=ph_s10q03_f
+            hirM=ph_s10q01_a*ph_s10q01_b,
+            hirF=ph_s10q01_d*ph_s10q01_e,
+            hirC=ph_s10q01_g*ph_s10q01_h,
+            OHHlabM=ph_s10q03_a*ph_s10q03_b,
+            OHHlabF=ph_s10q03_c*ph_s10q03_d,
+            OHHlabC=ph_s10q03_e*ph_s10q03_f
   )
 
 # -------------------------------------
@@ -231,44 +229,31 @@ lab2 <- read_dta(file.path(dataPath, "Post-Harvest/sect10_ph_w2.dta")) %>%
 # the post harvest labour is recorded
 # at the crop level
 
-lab2$crop <- as_factor(lab2$crop)
-lab2 <- filter(lab2, crop %in% "MAIZE") %>% select(-crop)
-
+ph_lab$crop <- as_factor(ph_lab$crop)
+ph_lab <- filter(ph_lab, crop %in% "MAIZE") %>% select(-crop)
 
 # make all NA values zero
-lab2[is.na(lab2)] <- 0
+ph_lab[is.na(ph_lab)] <- 0
 
 # sum all labour across a single plot - all measured in days
-lab2 <- transmute(lab2, holder_id, household_id2, parcel_id, field_id,
+ph_lab <- transmute(ph_lab, holder_id, household_id2, parcel_id, field_id,
                   harv_lab=lab1 + lab2 + lab3 + lab4 +
                     hirM + hirF + hirC + OHHlabM + OHHlabF + OHHlabC) 
 
-#######################################
-############### ASSETS ################
-#######################################
-
-# -------------------------------------
-# capital assets - but no prices!
-
-# assets <- read_dta(file.path(dataPath, "Household/sect10_hh_w2.dta")) %>%
-#   select(household_id2, item_code=hh_s10q00, item_name=hh_s10q0a, qty=hh_s10q01
-# )
-
-# -------------------------------------
-# livestock assets - but no prices!
-# and livestock are recorded in more than
-# one place in livestock questionnaire
-# some observations record age of livestock
-# some record quantity of a certain animal
-
+ph_lab$harv_lab[ph_lab$harv_lab %in% 0] <- NA
 
 #######################################
 ############### GEO ###################
 #######################################
 
 # WDswitch
-geo <- read_dta(file.path(dataPath, "Geodata/Pub_ETH_HouseholdGeovars_Y2.dta")) %>%
-  dplyr::select(household_id2, lon=lon_dd_mod, lat=lat_dd_mod)
+load(file.path(dataPath, "ETH_geo_total_2013.RData"))
+geo <- geo.total.plot %>% 
+  dplyr::select(holder_id, household_id2, ea_id2, parcel_id, field_id, lon, lat, SPEI, RootDepth, region=NAME_1,
+                AEZ=ssa_aez09, ph=ph_sd1_sd3, ph2=ph_sd1_sd5,
+                SOC=SOC_sd1_sd3, SOC2=SOC_sd1_sd5, rain=gsRainfall, 
+                YA, YW, YP, everything()) %>%
+  unique()
 
 #######################################
 ############### AREAs #################
@@ -288,7 +273,6 @@ areas$area_gps_mi50 <- ifelse(areas$area_gps_mi50 %in% 0, NA, areas$area_gps_mi5
 areaTotal <- group_by(areas, household_id2) %>%
   summarise(area_tot = sum(area_gps_mi50, na.rm=TRUE))
   
-
 #######################################
 ########### SOCIO/ECONOMIC ############
 #######################################
@@ -315,42 +299,42 @@ own$cert <- ifelse(own$cert %in% 1, 1, 0)
 # -------------------------------------
 # crop level joins
 
-data2013 <- left_join(oput_maize, crop) 
-data2013 <- left_join(data2013, lab2)
+ETH2013 <- left_join(oput_maize, crop) 
+ETH2013 <- left_join(ETH2013, ph_lab)
 
 # -------------------------------------
 # field level joins
 
-data2013 <- left_join(data2013, fert) 
-data2013 <- left_join(data2013, areas)
-data2013 <- left_join(data2013, lab1) 
-data2013 <- left_join(data2013, field)
+ETH2013 <- left_join(ETH2013, fert) 
+ETH2013 <- left_join(ETH2013, areas)
+ETH2013 <- left_join(ETH2013, pp_lab) 
+ETH2013 <- left_join(ETH2013, field)
 
 # -------------------------------------
 # parcel level joins
 
-data2013 <- left_join(data2013, parcel)
-data2013 <- left_join(data2013, own) 
+ETH2013 <- left_join(ETH2013, parcel)
+ETH2013 <- left_join(ETH2013, own) 
 
 # -------------------------------------
 # household level joins
 
-data2013 <- left_join(data2013, geo)
-data2013 <- left_join(data2013, se)
-data2013 <- left_join(data2013, areaTotal)
+ETH2013 <- left_join(ETH2013, se)
+ETH2013 <- left_join(ETH2013, areaTotal)
+ETH2013 <- left_join(ETH2013, geo)
 
 # -------------------------------------
 # Make some new variables
 # -------------------------------------
 
 # per hectacre
-data2013 <- mutate(data2013,
+ETH2013 <- mutate(ETH2013,
               yld=qty/area_gps_mi50,
               N=N/area_gps_mi50,
               P=P/area_gps_mi50
 )
 
-rm(list=ls()[!ls() %in% "data2013"])
+rm(list=ls()[!ls() %in% "ETH2013"])
 
 # save to file
-save(data2013, file=".\\Analysis\\ETH\\Data\\ETH2013_data.RData")
+save(ETH2013, file=".\\Analysis\\ETH\\Data\\ETH2013_data.RData")
