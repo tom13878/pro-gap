@@ -366,7 +366,7 @@ CS1 <- mutate(CS1,
 
 # save to file
 # save(CS1, file=".\\Analysis\\TZA\\Data\\TZA10_data.RData")
-save(CS1, file="C:/Users/Tomas/Documents/LEI/TZA10_data.RData")
+write.csv(CS1, "C:/Users/Tomas/Documents/LEI/TZA10_data.csv", row.names=FALSE)
 
 
 

@@ -241,6 +241,10 @@ areas$y3_hhid <- as.character(areas$y3_hhid)
 areas$plotnum <- as.character(areas$plotnum)
 areas$area <- ifelse(areas$area %in% 0, NA, areas$area)
 
+# 2012 areas are in acres, change to hecacres in line
+# with the 2010 data
+areas$area <- areas$area*0.404686 # from wikipedia
+
 #######################################
 ########## TRANSPORT COSTS ############
 #######################################
@@ -343,6 +347,6 @@ CS2 <- mutate(CS2,
 )
 
 # save to file
-save(CS2, file=".\\Analysis\\TZA\\Data\\TZA12_data.RData")
-save(CS2, file="C:/Users/Tomas/Documents/LEI/TZA12_data.RData")
+# save(CS2, file=".\\Analysis\\TZA\\Data\\TZA12_data.RData")
+write.csv(CS2, "C:/Users/Tomas/Documents/LEI/TZA12_data.csv", row.names=FALSE)
 
