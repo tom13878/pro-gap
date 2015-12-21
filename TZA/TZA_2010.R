@@ -11,7 +11,6 @@ dataPath <- "C:/Users/Tomas/Documents/LEI/data/TZA"
 
 library(haven)
 library(stringr)
-library(plyr)
 library(dplyr)
 
 options(scipen=999)
@@ -32,13 +31,17 @@ oput$hybrd <- ifelse(oput$hybrd %in% 2, 1, 0)
 oput$zaocode <- as.integer(oput$zaocode)
 
 legumes <- c(31, 32, 33, 35, 36, 37, 41, 42, 43, 47, 48)
-oput <- ddply(oput, .(y2_hhid, plotnum), transform,
-              crop_count=length(unique(zaocode[!is.na(zaocode)])),
-              legume=ifelse(any(zaocode %in% legumes), 1, 0))
 
-oput_maze <- oput[ oput$zaocode %in% 11 & ! is.na(oput$qty) & !oput$qty %in% 0, ]
-oput_maze$maize_prc <- oput_maze$valu/oput_maze$qty
-oput_maze <- dplyr::select(oput_maze, -zaocode, -valu)
+oput_x <- group_by(oput, y2_hhid, plotnum) %>%
+  summarise(crop_count=length(unique(zaocode[!is.na(zaocode)])),
+            legume=ifelse(any(zaocode %in% legumes), 1, 0))
+
+oput <- left_join(oput, oput_x); rm(oput_x)
+
+
+oput_maize <- oput[ oput$zaocode %in% 11 & ! is.na(oput$qty) & !oput$qty %in% 0, ]
+oput_maize$maize_prc <- oput_maize$valu/oput_maize$qty
+oput_maize <- dplyr::select(oput_maize, -zaocode, -valu)
 
 rm(list=c("oput", "legumes"))
 
@@ -49,10 +52,10 @@ rm(list=c("oput", "legumes"))
 # WDswitch
 # plot <- read_dta(file.path(dataPath, "TZA\\2010\\Data\\TZNPS2AGRDTA/AG_SEC3A.dta")) %>%
 plot <- read_dta(file.path(dataPath, "\\TZNPS2AGRDTA/AG_SEC3A.dta")) %>%
-  dplyr::select(y2_hhid, plotnum, maze=zaocode, soil=ag3a_09, slope=ag3a_16, irrig=ag3a_17, title=ag3a_27,
+  dplyr::select(y2_hhid, plotnum, maize=zaocode, soil=ag3a_09, slope=ag3a_16, irrig=ag3a_17, title=ag3a_27,
          manure=ag3a_39, pest=ag3a_58, fallow_year=ag3a_21, fallow=ag3a_22)
 
-plot$maze <- ifelse(plot$maze %in% 11, 1, 0)
+plot$maize <- ifelse(plot$maize %in% 11, 1, 0)
 plot$soil <- factor(plot$soil, levels=c(1,2,3,4), labels=c("Sandy", "Loam", "Clay", "Other"))
 plot$slope <- factor(plot$slope, levels=c(1,2,3,4), labels=c("Flat bottom", "Flat top", "Slightly sloped", "Very steep"))
 plot$title <- ifelse(plot$title %in% 1, 1, 0) # assume that they don't have a title if NA
@@ -85,7 +88,7 @@ fert2$typ <- as_factor(fert2$typ)
 fert2$vouch <- ifelse(fert2$vouch %in% 2, 0, fert2$vouch)
 
 levels(fert1$typ) <- levels(fert2$typ) <-
-  c("dap", "urea", "tsp", "can", "sa", "npk", "mrp")
+  c("DAP", "UREA", "TSP", "CAN", "SA", "generic NPK (TZA)", "MRP")
 
 # -------------------------------------
 # reorganize data so that observations
@@ -94,16 +97,16 @@ levels(fert1$typ) <- levels(fert2$typ) <-
 # Data on NPK composition from Sheahan et al (2014), Food Policy
 # -------------------------------------
 
-typ <- factor(levels(fert1$typ), levels=levels(fert1$typ))
-n <- c(0.18, 0.46, NA, 0.26, 0.21, 0.17, NA)
-p <- c(0.2, NA, 0.2056, NA, NA, 0.07412, 0.124696)
-k <- c(NA, NA, NA, NA, NA, 0.1411, NA)
-comp <- data.frame(typ, n, p, k)
+conv <- read.csv(paste(dataPath, "Fert_comp.csv", sep="/")) %>%
+  transmute(typ=Fert_type2, n=N_share/100, p=P_share/100) %>%
+  filter(typ %in% levels(fert1$typ))
 
-fert1 <- left_join(fert1, comp)
-fert2 <- left_join(fert2, comp)
 
-rm(list=c("comp", "typ", "n", "p", "k"))
+fert1 <- left_join(fert1, conv)
+fert2 <- left_join(fert2, conv)
+
+# -------------------------------------
+# organize fertilizer data for analysis
 
 fert <- rbind(fert1, fert2)
 
@@ -146,7 +149,7 @@ plot <- left_join(plot, fertmix) %>%
         mutate(N = ifelse(is.na(N), 0, N),
                P = ifelse(is.na(P), 0, P))
 
-rm(list=c("fert1", "fert2", "fert", "fertsub", "fertnosub", "fertmix"))
+rm(list=c("fert1", "fert2", "fert", "fertsub", "fertnosub", "fertmix", "conv"))
 
 #######################################
 ############### LABOUR ################
@@ -237,6 +240,11 @@ areas <- read_dta(file.path(dataPath, "areas_tza_y2_imputed.dta")) %>%
 
 areas$area <- ifelse(areas$area %in% 0, NA, areas$area)
 
+areaTotal <- group_by(areas, y2_hhid) %>%
+  summarise(area_tot = sum(area, na.rm=TRUE))
+
+areaTotal$area_tot <- ifelse(areaTotal$area_tot %in% 0, NA, areaTotal$area_tot)
+
 #######################################
 ############### ASSETS ################
 #######################################
@@ -311,28 +319,27 @@ own$own <- ifelse(own$own %in% 1 | own$own %in% 5, 1, 0)
 #######################################
 
 # joins at the plot level
-CS1 <- left_join(oput_maze, plot)
-CS1 <- left_join(CS1, lab)
-CS1 <- left_join(CS1, areas)
-CS1 <- left_join(CS1, own)
+TZA2010 <- left_join(oput_maize, plot)
+TZA2010 <- left_join(TZA2010, lab)
+TZA2010 <- left_join(TZA2010, areas)
+TZA2010 <- left_join(TZA2010, own)
 
 # joins at the household level
-CS1 <- left_join(CS1, implmt)
-CS1 <- left_join(CS1, geo)
-CS1 <- left_join(CS1, rural)
-CS1 <- left_join(CS1, se)
-CS1 <- left_join(CS1, tc)
+TZA2010 <- left_join(TZA2010, implmt)
+TZA2010 <- left_join(TZA2010, geo)
+TZA2010 <- left_join(TZA2010, rural)
+TZA2010 <- left_join(TZA2010, se)
+TZA2010 <- left_join(TZA2010, tc)
+TZA2010 <- left_join(TZA2010, areaTotal)
 
-rm(list=ls()[!ls() %in% "CS1"])
+rm(list=ls()[!ls() %in% "TZA2010"])
 
 # -------------------------------------
 # Make some new variables
 # -------------------------------------
 
-CS1 <- ddply(CS1, .(y2_hhid), transform, area_tot=sum(area))
-
 # per hectacre
-CS1 <- mutate(CS1,
+TZA2010 <- mutate(TZA2010,
              yld=qty/area,
              N=N/area,
              P=P/area,
@@ -348,15 +355,15 @@ CS1 <- mutate(CS1,
 # http://data.worldbank.org/indicator/FP.CPI.TOTL.ZG/countries/TZ?display=graph
 # -------------------------------------
 
-CS1$asset <- CS1$asset*(1+0.12)*(1+0.16)
-CS1$maize_prc <- CS1$maize_prc*(1+0.12)*(1+0.16)
-CS1$WPn <- CS1$WPn*(1+0.12)*(1+0.16) 
-CS1$WPnnosub <- CS1$WPnnosub*(1+0.12)*(1+0.16)
-CS1$WPnsub <- CS1$WPnsub*(1+0.12)*(1+0.16)
-CS1 <- dplyr::select(CS1, -plotnum, -qty, -value)
+TZA2010$asset <- TZA2010$asset*(1+0.12)*(1+0.16)
+TZA2010$maize_prc <- TZA2010$maize_prc*(1+0.12)*(1+0.16)
+TZA2010$WPn <- TZA2010$WPn*(1+0.12)*(1+0.16) 
+TZA2010$WPnnosub <- TZA2010$WPnnosub*(1+0.12)*(1+0.16)
+TZA2010$WPnsub <- TZA2010$WPnsub*(1+0.12)*(1+0.16)
+TZA2010 <- dplyr::select(TZA2010, -plotnum, -qty, -value)
 
 # add final variables
-CS1 <- mutate(CS1,
+TZA2010 <- mutate(TZA2010,
              N2=N^2,
              asset2=asset^2,
              area2=area^2,
@@ -365,8 +372,8 @@ CS1 <- mutate(CS1,
 )
 
 # save to file
-# save(CS1, file=".\\Analysis\\TZA\\Data\\TZA10_data.RData")
-write.csv(CS1, "C:/Users/Tomas/Documents/LEI/TZA10_data.csv", row.names=FALSE)
+# save(TZA2010, file=".\\Analysis\\TZA\\Data\\TZA10_data.RData")
+write.csv(TZA2010, "C:/Users/Tomas/Documents/LEI/TZA10_data.csv", row.names=FALSE)
 
 
 
