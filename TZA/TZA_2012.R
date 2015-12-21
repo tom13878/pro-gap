@@ -11,7 +11,6 @@ dataPath <- "C:/Users/Tomas/Documents/LEI/data/TZA/TZA_2012_LSMS_v01_M_STATA_Eng
 
 
 library(haven)
-library(plyr)
 library(dplyr)
 
 options(scipen=999)
@@ -31,13 +30,16 @@ oput$hybrd <- ifelse(oput$hybrd %in% 1, 1, 0)
 oput$zaocode <- as.integer(oput$zaocode)
 
 legumes <- c(31, 32, 33, 35, 36, 37, 41, 42, 43, 47, 48)
-oput <- ddply(oput, .(y3_hhid, plotnum), transform,
-              crop_count=length(unique(zaocode[!is.na(zaocode)])),
-              legume=ifelse(any(zaocode %in% legumes), 1, 0))
 
-oput_maze <- oput[ oput$zaocode %in% 11 & !is.na(oput$qty) & !oput$qty %in% 0, ]
-oput_maze$maize_prc <- oput_maze$valu/oput_maze$qty
-oput_maze <- dplyr::select(oput_maze, -zaocode, -valu)
+oput_x <- group_by(oput, y3_hhid, plotnum) %>%
+  summarise(crop_count=length(unique(zaocode[!is.na(zaocode)])),
+            legume=ifelse(any(zaocode %in% legumes), 1, 0))
+
+oput <- left_join(oput, oput_x); rm(oput_x)
+
+oput_maize <- oput[ oput$zaocode %in% 11 & !is.na(oput$qty) & !oput$qty %in% 0, ]
+oput_maize$maize_prc <- oput_maize$valu/oput_maize$qty
+oput_maize <- dplyr::select(oput_maize, -zaocode, -valu)
 
 rm(list=c("oput", "legumes"))
 
@@ -48,10 +50,10 @@ rm(list=c("oput", "legumes"))
 # WDswitch
 # plot <- read_dta(file.path(dataPath, "TZA\\2012\\Data\\AG_SEC_3A.dta"))%>%
 plot <- read_dta(file.path(dataPath, "AG_SEC_3A.dta"))%>%
-  dplyr::select(y3_hhid, plotnum, maze=ag3a_07_2,  soil=ag3a_10, slope=ag3a_17, irrig=ag3a_18, title=ag3a_28, 
+  dplyr::select(y3_hhid, plotnum, maize=ag3a_07_2,  soil=ag3a_10, slope=ag3a_17, irrig=ag3a_18, title=ag3a_28, 
          manure=ag3a_41, pest=ag3a_60, fallow_year=ag3a_22, fallow=ag3a_23)
 
-plot$maze <- ifelse(plot$maze %in% 11, 1, 0)
+plot$maize <- ifelse(plot$maize %in% 11, 1, 0)
 plot$soil <- factor(plot$soil, levels=c(1,2,3,4), labels=c("Sandy", "Loam", "Clay", "Other"))
 plot$slope <- factor(plot$slope, levels=c(1,2,3,4), labels=c("Flat bottom", "Flat top", "Slightly sloped", "Very steep"))
 plot$title <- as.numeric(as_factor(plot$title))
@@ -86,7 +88,7 @@ fert2$typ <- as_factor(fert2$typ)
 fert2$vouch <- ifelse(fert2$vouch %in% 2, 0, fert2$vouch)
 
 levels(fert1$typ) <- levels(fert2$typ) <-
-  c("dap", "urea", "tsp", "can", "sa", "npk", "mrp")
+  c("DAP", "UREA", "TSP", "CAN", "SA", "generic NPK (TZA)", "MRP")
 
 # -------------------------------------
 # reorganize data so that observations
@@ -95,17 +97,18 @@ levels(fert1$typ) <- levels(fert2$typ) <-
 # Data on NPK composition from Sheahan et al (2014), Food Policy
 # -------------------------------------
 
-typ <- factor(levels(fert1$typ), levels=levels(fert1$typ))
-n <- c(0.18, 0.46, NA, 0.26, 0.21, 0.17, NA)
-p <- c(0.2, NA, 0.2056, NA, NA, 0.07412, 0.124696)
-k <- c(NA, NA, NA, NA, NA, 0.1411, NA)
-comp <- data.frame(typ, n, p, k)
+conv <- read.csv(paste(dataPath, "..", "Fert_comp.csv", sep="/")) %>%
+  transmute(typ=Fert_type2, n=N_share/100, p=P_share/100) %>%
+  filter(typ %in% levels(fert1$typ))
 
-fert1 <- left_join(fert1, comp)
-fert2 <- left_join(fert2, comp)
+fert1 <- left_join(fert1, conv)
+fert2 <- left_join(fert2, conv)
+rm(conv)
+
+# -------------------------------------
+# organize fertilizer data for analysis
+
 fert <- rbind(fert1, fert2)
-
-rm(list=c("comp", "typ", "n", "p", "k"))
 
 fert <- mutate(fert,
                Vfert=valu/qty,
@@ -245,6 +248,11 @@ areas$area <- ifelse(areas$area %in% 0, NA, areas$area)
 # with the 2010 data
 areas$area <- areas$area*0.404686 # from wikipedia
 
+areaTotal <- group_by(areas, y3_hhid) %>%
+  summarise(area_tot = sum(area, na.rm=TRUE))
+
+areaTotal$area_tot <- ifelse(areaTotal$area_tot %in% 0, NA, areaTotal$area_tot)
+
 #######################################
 ########## TRANSPORT COSTS ############
 #######################################
@@ -306,28 +314,27 @@ own$own <- ifelse(own$own %in% 1 | own$own %in% 5, 1, 0)
 #######################################
 
 # joins at the plot level
-CS2 <- left_join(oput_maze, plot)
-CS2 <- left_join(CS2, lab)
-CS2 <- left_join(CS2, areas)
-CS2 <- left_join(CS2, own)
+TZA2012 <- left_join(oput_maize, plot)
+TZA2012 <- left_join(TZA2012, lab)
+TZA2012 <- left_join(TZA2012, areas)
+TZA2012 <- left_join(TZA2012, own)
 
 # joins at the household level
-CS2 <- left_join(CS2, implmt)
-CS2 <- left_join(CS2, geo)
-CS2 <- left_join(CS2, rural)
-CS2 <- left_join(CS2, se)
-CS2 <- left_join(CS2, tc)
+TZA2012 <- left_join(TZA2012, implmt)
+TZA2012 <- left_join(TZA2012, geo)
+TZA2012 <- left_join(TZA2012, rural)
+TZA2012 <- left_join(TZA2012, se)
+TZA2012 <- left_join(TZA2012, tc)
+TZA2012 <- left_join(TZA2012, areaTotal)
 
-rm(list=ls()[!ls() %in% "CS2"])
+rm(list=ls()[!ls() %in% "TZA2012"])
 
 # -------------------------------------
 # Make some new variables
 # -------------------------------------
 
-CS2 <- ddply(CS2, .(y3_hhid), transform, area_tot=sum(area))
-
 # per hectacre
-CS2 <- mutate(CS2,
+TZA2012 <- mutate(TZA2012,
               yld=qty/area,
               N=N/area,
               P=P/area,
@@ -335,10 +342,10 @@ CS2 <- mutate(CS2,
               asset=value/area_tot
 )
 
-CS2 <- dplyr::select(CS2, -plotnum, -qty, -value)
+TZA2012 <- dplyr::select(TZA2012, -plotnum, -qty, -value)
 
 # add final variables
-CS2 <- mutate(CS2,
+TZA2012 <- mutate(TZA2012,
               N2=N^2,
               asset2=asset^2,
               area2=area^2,
@@ -347,6 +354,6 @@ CS2 <- mutate(CS2,
 )
 
 # save to file
-# save(CS2, file=".\\Analysis\\TZA\\Data\\TZA12_data.RData")
-write.csv(CS2, "C:/Users/Tomas/Documents/LEI/TZA12_data.csv", row.names=FALSE)
+# save(TZA2012, file=".\\Analysis\\TZA\\Data\\TZA12_data.RData")
+write.csv(TZA2012, "C:/Users/Tomas/Documents/LEI/TZA12_data.csv", row.names=FALSE)
 
