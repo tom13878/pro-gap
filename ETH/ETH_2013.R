@@ -122,16 +122,15 @@ fert2$typ <- ifelse(fert2$typ %in% 1, "DAP", NA)
 fert2$purch <- ifelse(fert2$purch %in% 1, 1, 0)
 
 # -------------------------------------
-# nitrogen conversions from Michiel's 
-# csv file
+# read in nitrogen conversion file
 
-typ <- c("DAP", "UREA")
-n <- c(0.18, 0.46)
-p <- c(0.2, NA)
-comp <- data.frame(typ, n, p)
+conv <- read.csv(paste(dataPath, "Fert_comp.csv", sep="/")) %>%
+  transmute(typ=Fert_type2, n=N_share/100, p=P_share/100) %>%
+  filter(typ %in% c("UREA", "DAP"))
 
-fert1 <- left_join(fert1, comp)
-fert2 <- left_join(fert2, comp)
+
+fert1 <- left_join(fert1, conv)
+fert2 <- left_join(fert2, conv)
 
 # -------------------------------------
 # If purchased amount of nitrogen is zero 
@@ -166,7 +165,7 @@ fert <- group_by(fert, holder_id, household_id2, parcel_id, field_id) %>%
             WPn=sum((Qn/N)*Pn, na.rm=TRUE)) %>%
   mutate(WPn = replace(WPn, WPn==0, NA))
 
-rm(fert1, fert2, comp, n, p, typ)
+rm(fert1, fert2, conv)
 
 #######################################
 ############### LABOUR ################
