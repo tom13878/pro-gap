@@ -56,7 +56,7 @@ rm("oput", "legumes")
 # parcel level
 # WDswitch
 parcel <- read_dta(file.path(dataPath, "Post-Planting/sect2_pp_w2.dta")) %>%
-  dplyr::select(holder_id, household_id2, parcel_id, soil_type=pp_s2q14, soil_qlty=pp_s2q15)
+  dplyr::select(holder_id, household_id2, parcel_id, soil=pp_s2q14, soil_qlty=pp_s2q15)
 
 parcel$soil_type <- as_factor(parcel$soil_type)
 parcel$soil_qlty <- as_factor(parcel$soil_qlty)
@@ -264,7 +264,8 @@ geo <- geo.total.plot %>%
 # WDswitch
 areas <- read_dta(paste(dataPath, "areas_ETH2013.dta", sep="/"))
 areas <- select(areas, holder_id, household_id2,
-                parcel_id, field_id, area_gps, area_gps_mi50)
+                parcel_id, field_id, area_gps, area_gps_mi50,
+                area_farmer=area_sr)
 
 areas$area_gps <- ifelse(areas$area_gps %in% 0, NA, areas$area_gps)
 areas$area_gps_mi50 <- ifelse(areas$area_gps_mi50 %in% 0, NA, areas$area_gps_mi50)
@@ -288,8 +289,8 @@ se$rural <- ifelse(se$rural %in% 1, 1, 0)
 # ownership of a parcel
 # WDswitch
 own <- read_dta(file.path(dataPath, "Post-Planting/sect2_pp_w2.dta")) %>%
-  dplyr::select(holder_id, household_id2, parcel_id, cert=pp_s2q04)
-own$cert <- ifelse(own$cert %in% 1, 1, 0)  
+  dplyr::select(holder_id, household_id2, parcel_id, title=pp_s2q04)
+own$title <- ifelse(own$title %in% 1, 1, 0)  
   
 #######################################
 ########### CROSS SECTION #############
@@ -332,6 +333,8 @@ ETH2013 <- mutate(ETH2013,
               N=N/area_gps_mi50,
               P=P/area_gps_mi50
 )
+
+# squared values
 
 rm(list=ls()[!ls() %in% "ETH2013"])
 
