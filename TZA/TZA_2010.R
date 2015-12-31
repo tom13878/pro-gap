@@ -52,16 +52,20 @@ rm(list=c("oput", "legumes"))
 # WDswitch
 # plot <- read_dta(file.path(dataPath, "TZA\\2010\\Data\\TZNPS2AGRDTA/AG_SEC3A.dta")) %>%
 plot <- read_dta(file.path(dataPath, "\\TZNPS2AGRDTA/AG_SEC3A.dta")) %>%
-  dplyr::select(y2_hhid, plotnum, maize=zaocode, soil=ag3a_09, slope=ag3a_16, irrig=ag3a_17, title=ag3a_27,
-         manure=ag3a_39, pest=ag3a_58, fallow_year=ag3a_21, fallow=ag3a_22)
+  dplyr::select(y2_hhid, plotnum, maize=zaocode, soil=ag3a_09, slope_farmer=ag3a_16, irrig=ag3a_17, title=ag3a_27,
+         manure=ag3a_39, pest=ag3a_58, pest_q=ag3a_60_1, pest_q_unit=ag3a_60_2, fallow_year=ag3a_21, fallow=ag3a_22)
 
 plot$maize <- ifelse(plot$maize %in% 11, 1, 0)
 plot$soil <- factor(plot$soil, levels=c(1,2,3,4), labels=c("Sandy", "Loam", "Clay", "Other"))
-plot$slope <- factor(plot$slope, levels=c(1,2,3,4), labels=c("Flat bottom", "Flat top", "Slightly sloped", "Very steep"))
+plot$slope_farmer <- factor(plot$slope_farmer, levels=c(1,2,3,4), labels=c("Flat bottom", "Flat top", "Slightly sloped", "Very steep"))
 plot$title <- ifelse(plot$title %in% 1, 1, 0) # assume that they don't have a title if NA
 plot$irrig <- ifelse(plot$irrig %in% 1, 1, 0)
 plot$manure <- ifelse(plot$manure %in% 1, 1, 0)
 plot$pest <- ifelse(plot$pest %in% 1, 1, 0)
+plot$pest_q_unit <- as_factor(plot$pest_q_unit)
+
+plot$pest_q <- ifelse(plot$pest_q_unit %in% c("LITRE", "KG"), plot$pest_q,
+                      ifelse(plot$pest_q_unit %in% "MILLILITRE", plot$pest_q*0.001, NA))
 
 # two questions on fallow - make sure they match up correctly
 # fallow value of 98 means subject did not know how long plot
@@ -69,7 +73,7 @@ plot$pest <- ifelse(plot$pest %in% 1, 1, 0)
 plot$fallow_year <- ifelse(plot$fallow_year %in% 98, NA, plot$fallow_year)
 plot$fallow <- ifelse(plot$fallow_year %in% 0, 0, plot$fallow )
 plot$fallow <- ifelse(is.na(plot$fallow_year), NA, plot$fallow)
-plot <- dplyr::select(plot, -fallow_year)
+plot <- dplyr::select(plot, -fallow_year, -pest_q_unit)
 
 # WDswitch
 # fert1 <- read_dta(file.path(dataPath, "TZA\\2010\\Data\\TZNPS2AGRDTA/AG_SEC3A.dta")) %>%
@@ -236,12 +240,13 @@ geo$zone <- factor(geo$zone)
 # WDswitch
 # areas <- read_dta(file.path(dataPath, "Plot_size/areas_tza_y2_imputed.dta")) %>%
 areas <- read_dta(file.path(dataPath, "areas_tza_y2_imputed.dta")) %>%  
-  dplyr::select(y2_hhid=case_id, plotnum, area=area_gps_mi_50)
+  dplyr::select(y2_hhid=case_id, plotnum,
+                area_farmer=area_sr, area_gps=area_gps_mi_50)
 
-areas$area <- ifelse(areas$area %in% 0, NA, areas$area)
+areas$area_gps <- ifelse(areas$area_gps %in% 0, NA, areas$area_gps)
 
 areaTotal <- group_by(areas, y2_hhid) %>%
-  summarise(area_tot = sum(area, na.rm=TRUE))
+  summarise(area_tot = sum(area_gps, na.rm=TRUE))
 
 areaTotal$area_tot <- ifelse(areaTotal$area_tot %in% 0, NA, areaTotal$area_tot)
 
@@ -340,40 +345,50 @@ rm(list=ls()[!ls() %in% "TZA2010"])
 
 # per hectacre
 TZA2010 <- mutate(TZA2010,
-             yld=qty/area,
-             N=N/area,
-             P=P/area,
-             lab=lab/area,
+             yld=qty/area_gps,
+             N=N/area_gps,
+             P=P/area_gps,
+             lab=lab/area_gps,
+             pest_q=pest_q/area_gps,
              asset=value/area_tot
 )
 
 
 # -------------------------------------
-# Inflate 2011 prices to 2013 prices: assets, fertilizer and maize
-# using inflation rate for 2011 and 2013. These years were selected as the main part of the survey takes place in these years.
-# from world bank:
+# Inflate 2011 prices to 2013 prices:
+# assets, fertilizer, maize and transport
+# costs using inflation rate for 2011 and 2013.
+# These years were selected as the main part
+# of the survey takes place in these years.
+# inflation rate from world bank:
 # http://data.worldbank.org/indicator/FP.CPI.TOTL.ZG/countries/TZ?display=graph
 # -------------------------------------
 
-TZA2010$asset <- TZA2010$asset*(1+0.12)*(1+0.16)
-TZA2010$maize_prc <- TZA2010$maize_prc*(1+0.12)*(1+0.16)
-TZA2010$WPn <- TZA2010$WPn*(1+0.12)*(1+0.16) 
-TZA2010$WPnnosub <- TZA2010$WPnnosub*(1+0.12)*(1+0.16)
-TZA2010$WPnsub <- TZA2010$WPnsub*(1+0.12)*(1+0.16)
-TZA2010 <- dplyr::select(TZA2010, -plotnum, -qty, -value)
+inflation <- read.csv("C:/Users/Tomas/Documents/lei/data/inflation.csv")
+rate2011 <- inflation$inflation[inflation$code=="TZ" & inflation$year==2011]
+rate2013 <- inflation$inflation[inflation$code=="TZ" & inflation$year==2013]
+
+TZA2010 <- mutate(TZA2010,
+                    asset = asset*(1 + rate2011)*(1 + rate2013),
+                    maize_prc = maize_prc*(1 + rate2011)*(1 + rate2013),
+                    WPn = WPn*(1 + rate2011)*(1 + rate2013),
+                    WPnnosub = WPnnosub*(1 + rate2011)*(1 + rate2013),
+                    WPnsub = WPnsub*(1 + rate2011)*(1 + rate2013))
+
+TZA2010 <- dplyr::select(TZA2010, -qty, -value)
 
 # add final variables
 TZA2010 <- mutate(TZA2010,
              N2=N^2,
              asset2=asset^2,
-             area2=area^2,
+             area2=area_gps^2,
              lab2=lab^2,
              surveyyear=2010
 )
 
 # save to file
 # save(TZA2010, file=".\\Analysis\\TZA\\Data\\TZA10_data.RData")
-write.csv(TZA2010, "C:/Users/Tomas/Documents/LEI/TZA10_data.csv", row.names=FALSE)
+# write.csv(TZA2010, "C:/Users/Tomas/Documents/LEI/TZA10_data.csv", row.names=FALSE)
 
 
 

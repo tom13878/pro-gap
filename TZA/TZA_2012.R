@@ -49,19 +49,22 @@ rm(list=c("oput", "legumes"))
 
 # WDswitch
 # plot <- read_dta(file.path(dataPath, "TZA\\2012\\Data\\AG_SEC_3A.dta"))%>%
-plot <- read_dta(file.path(dataPath, "AG_SEC_3A.dta"))%>%
-  dplyr::select(y3_hhid, plotnum, maize=ag3a_07_2,  soil=ag3a_10, slope=ag3a_17, irrig=ag3a_18, title=ag3a_28, 
-         manure=ag3a_41, pest=ag3a_60, fallow_year=ag3a_22, fallow=ag3a_23)
+plot <- read_dta(file.path(dataPath, "AG_SEC_3A.dta")) %>%
+  dplyr::select(y3_hhid, plotnum, maize=ag3a_07_2,  soil=ag3a_10, slope_farmer=ag3a_17, irrig=ag3a_18, title=ag3a_28, 
+         manure=ag3a_41, pest=ag3a_60, pest_q=ag3a_62_1, pest_q_unit=ag3a_62_2, fallow_year=ag3a_22, fallow=ag3a_23)
 
 plot$maize <- ifelse(plot$maize %in% 11, 1, 0)
 plot$soil <- factor(plot$soil, levels=c(1,2,3,4), labels=c("Sandy", "Loam", "Clay", "Other"))
-plot$slope <- factor(plot$slope, levels=c(1,2,3,4), labels=c("Flat bottom", "Flat top", "Slightly sloped", "Very steep"))
+plot$slope_farmer <- factor(plot$slope_farmer, levels=c(1,2,3,4), labels=c("Flat bottom", "Flat top", "Slightly sloped", "Very steep"))
 plot$title <- as.numeric(as_factor(plot$title))
 plot$title <- ifelse(plot$title %in% c(1:10), 1, 0)
 plot$irrig <- ifelse(plot$irrig %in% 1, 1, 0)
 plot$manure <- ifelse(plot$manure %in% 1, 1, 0)
 plot$pest <- ifelse(plot$pest %in% 1, 1, 0)
+plot$pest_q_unit <- as_factor(plot$pest_q_unit)
 
+plot$pest_q <- ifelse(plot$pest_q_unit %in% c("LITRE", "KG"), plot$pest_q,
+                      ifelse(plot$pest_q_unit %in% "MILLILITRE", plot$pest_q*0.001, NA))
 
 # two questions on fallow - make sure they match up correctly
 # fallow value of 98 means subject did not know how long plot
@@ -69,7 +72,7 @@ plot$pest <- ifelse(plot$pest %in% 1, 1, 0)
 plot$fallow_year <- ifelse(plot$fallow_year %in% 98, NA, plot$fallow_year)
 plot$fallow <- ifelse(plot$fallow_year %in% 0, 0, plot$fallow )
 plot$fallow <- ifelse(is.na(plot$fallow_year), NA, plot$fallow)
-plot <- dplyr::select(plot, -fallow_year)
+plot <- dplyr::select(plot, -fallow_year, -pest_q_unit)
 
 # WDswitch
 # fert1 <- read_dta(file.path(dataPath, "TZA\\2012\\Data\\AG_SEC_3A.dta")) %>%
@@ -239,17 +242,19 @@ geo$zone <- factor(geo$zone)
 # WDswitch
 # areas <- read.csv("Analysis/TZA/Data/areas_w3.csv") %>%
 areas <- read.csv("C:/Users/Tomas/Documents/LEI/data/TZA/areas_w3.csv") %>%
-  dplyr::select(y3_hhid, plotnum, area=gps_imputed)
+  dplyr::select(y3_hhid, plotnum,
+                area_farmer=area.est,
+                area_gps=gps_imputed)
 areas$y3_hhid <- as.character(areas$y3_hhid)
 areas$plotnum <- as.character(areas$plotnum)
-areas$area <- ifelse(areas$area %in% 0, NA, areas$area)
+areas$area_gps <- ifelse(areas$area_gps %in% 0, NA, areas$area_gps)
 
 # 2012 areas are in acres, change to hecacres in line
 # with the 2010 data
-areas$area <- areas$area*0.404686 # from wikipedia
+areas$area_gps <- areas$area_gps*0.404686 # from wikipedia
 
 areaTotal <- group_by(areas, y3_hhid) %>%
-  summarise(area_tot = sum(area, na.rm=TRUE))
+  summarise(area_tot = sum(area_gps, na.rm=TRUE))
 
 areaTotal$area_tot <- ifelse(areaTotal$area_tot %in% 0, NA, areaTotal$area_tot)
 
@@ -335,25 +340,26 @@ rm(list=ls()[!ls() %in% "TZA2012"])
 
 # per hectacre
 TZA2012 <- mutate(TZA2012,
-              yld=qty/area,
-              N=N/area,
-              P=P/area,
-              lab=lab/area,
+              yld=qty/area_gps,
+              N=N/area_gps,
+              P=P/area_gps,
+              lab=lab/area_gps,
+              pest_q=pest_q/area_gps,
               asset=value/area_tot
 )
 
-TZA2012 <- dplyr::select(TZA2012, -plotnum, -qty, -value)
+TZA2012 <- dplyr::select(TZA2012, -qty, -value)
 
 # add final variables
 TZA2012 <- mutate(TZA2012,
               N2=N^2,
               asset2=asset^2,
-              area2=area^2,
+              area2=area_gps^2,
               lab2=lab^2,
               surveyyear=2012
 )
 
 # save to file
 # save(TZA2012, file=".\\Analysis\\TZA\\Data\\TZA12_data.RData")
-write.csv(TZA2012, "C:/Users/Tomas/Documents/LEI/TZA12_data.csv", row.names=FALSE)
+# write.csv(TZA2012, "C:/Users/Tomas/Documents/LEI/TZA12_data.csv", row.names=FALSE)
 
