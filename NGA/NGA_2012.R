@@ -72,13 +72,36 @@ rm(list=c("bad_maize", "cnvrt", "legumes", "oput", "unit_code", "weight"))
 #######################################
 
 chem <- read_dta("Post Planting Wave 2/Agriculture/sect11c2_plantingw2.dta") %>%
-  dplyr::select(hhid, plotid, pest=s11c2q1, herb=s11c2q10)
+  dplyr::select(hhid, plotid,
+                pest=s11c2q1, pest_q=s11c2q2a, pest_q_unit=s11c2q2b,
+                free_pest_q=s11c2q7a, free_pest_q_unit=s11c2q7b,
+                herb=s11c2q10, herb_q=s11c2q11a, herb_q_unit=s11c2q11b,
+                free_herb_q=s11c2q16a, free_herb_q_unit=s11c2q16b)
 
 chem$pest <- ifelse(chem$pest %in% 1, 1, 0)
 chem$herb <- ifelse(chem$herb %in% 1, 1, 0)
 
-chem <- dplyr::mutate(chem, hhid, plotid,
-                         chem=ifelse(pest %in% 1 | herb %in% 1, 1, 0))
+chem$pest_q_unit <- as_factor(chem$pest_q_unit)
+chem$free_pest_q_unit <- as_factor(chem$free_pest_q_unit)
+chem$herb_q_unit <- as_factor(chem$herb_q_unit)
+chem$free_herb_q_unit <- as_factor(chem$free_herb_q_unit)
+
+chem$pest_q <- ifelse(chem$pest_q_unit %in% c("litre", "kilogram"), chem$pest_q,
+                      ifelse(chem$pest_q_unit %in% "gram", chem$pest_q*0.001, NA))
+chem$free_pest_q <- ifelse(chem$free_pest_q_unit %in% c("litre", "kilogram"), chem$free_pest_q,
+                           ifelse(chem$free_pest_q_unit %in% "gram", chem$free_pest_q*0.001, NA))
+chem$herb_q <- ifelse(chem$herb_q_unit %in% c("litre", "kilogram"), chem$herb_q,
+                      ifelse(chem$herb_q_unit %in% "gram", chem$herb_q*0.001, NA))
+chem$free_herb_q <- ifelse(chem$free_herb_q_unit %in% c("litre", "kilogram"), chem$free_herb_q,
+                           ifelse(chem$free_herb_q_unit %in% "gram", chem$free_herb_q*0.001, NA))
+
+chem <- select(chem, -pest_q_unit, -free_pest_q_unit, -herb_q_unit, -free_herb_q_unit)
+
+chem[is.na(chem)] <- 0
+
+chem <- transmute(chem, hhid, plotid, pest, herb,
+                  pest_q=pest_q + free_pest_q,
+                  herb_q=herb_q + free_herb_q)
 
 # COMMERCIAL FERTILIZER
 fert1 <- read_dta("Post Planting Wave 2/Agriculture/sect11d_plantingw2.dta") %>%
@@ -319,6 +342,33 @@ geo$rural <- ifelse(geo$rural %in% 2, 1, 0)
 geo$AEZ <- as.integer(geo$AEZ)
 
 #######################################
+########### SOCIO/ECONOMIC ############
+#######################################
+
+# note that there exists a post planting
+# and post harvest household questionnaire
+
+# WDswitch
+se <- read_dta("Post Planting Wave 2/Household/sect1_plantingw2.dta") %>%
+  select(hhid, indiv, sex=s1q2, status=s1q3, age=s1q6)
+se$sex <- as_factor(se$sex)
+se$status <- as_factor(se$status)
+se <- filter(se, status %in% "HEAD")
+
+# education - no variable for years of schooling
+# but we do have level achieved
+# WDswitch
+
+ed <- read_dta("Post Planting Wave 2/Household/sect2_plantingw2.dta") %>%
+  select(hhid, indiv, educ=s2q8)
+ed$educ <- as_factor(ed$educ)
+
+se <- left_join(se, ed)
+
+se <- select(se, -indiv, -status)
+
+
+#######################################
 ########### MISCELLANEOUS #############
 #######################################
 
@@ -368,6 +418,7 @@ NGA2012 <- left_join(NGA2012, lvstk)
 NGA2012 <- left_join(NGA2012, lvstk2)
 NGA2012 <- left_join(NGA2012, geo)
 NGA2012 <- left_join(NGA2012, areaTotal)
+NGA2012 <- left_join(NGA2012, se)
 
 # -------------------------------------
 # Make some new variables
@@ -385,6 +436,8 @@ NGA2012 <- mutate(NGA2012,
              yld=qty/area_gps,
              N=N/area_gps,
              P=P/area_gps,
+             pest_q=pest_q/area_gps,
+             herb_q=herb_q/area_gps,
              asset=(implmt_value + lvstk2_valu)/area_tot
 )
 
@@ -398,6 +451,8 @@ NGA2012 <- mutate(NGA2012,
              harv_lab2=harv_lab^2,
              surveyyear=2012
 )
+
+rm(list=ls()[!ls() %in% c("NGA2010", "NGA2012")])
 
 # save to file
 write_dta(NGA2012, "C:/Users/Tomas/Documents/Work/LEI/NGA12_data.dta")
