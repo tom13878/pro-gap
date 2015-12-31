@@ -2,15 +2,12 @@
 ############ NIGERIA 2012 #############
 #######################################
 
-setwd("c:/USers/tomas/Documents/work/LEI/data/NGA/NGA_2012_LSMS_v03_M_STATA")
+setwd("C:/Users/Tomas/Documents/lei/data/NGA/NGA_2012_LSMS_v03_M_STATA")
 
 library(haven)
-library(stringr)
-library(plyr)
 library(dplyr)
 
 options(scipen=999)
-
 
 #######################################
 ############### OUTPUT ################
@@ -33,9 +30,17 @@ bad_maize <- c("MAIZE.", "MAAIZE", "MAIZE FARM", "M AIZE", "MAZIE", "maize")
 oput$crop <- ifelse(oput$crop %in% bad_maize, "MAIZE", oput$crop)
 
 legumes <- c("PIGEON PEA", "SOYA BEANS", "LOCUST BEAN")
-oput <- ddply(oput, .(hhid, plotid), transform,
-              crop_count=length(crop[!is.na(crop)]),
-              legume=ifelse(any(crop %in% legumes), 1, 0))
+
+oput_x <- group_by(oput, hhid, plotid) %>%
+  summarise(crop_count=length(crop[!is.na(crop)]),
+            legume=ifelse(any(crop %in% legumes), 1, 0))
+
+# join does not work without making hhid variable
+# numeric - although they are numric to begin with ??
+oput$hhid <- as.numeric(oput$hhid)
+oput_x$hhid <- as.numeric(oput_x$hhid)
+
+oput <- left_join(oput, oput_x); rm(oput_x)
 
 # select on maize and remove observations with quantity NA or 0
 oput_maize <- oput[oput$crop %in% "MAIZE" & ! is.na(oput$qty) & !oput$qty %in% 0,]
@@ -88,10 +93,16 @@ leftOverFert <- read_dta("Post Planting Wave 2/Agriculture/sect11d_plantingw2.dt
     dplyr::select(hhid, plotid, typ=s11dq3, qty=s11dq4)
 
 # make factor variables into characters for easier joining
-fert1$typ <- as.character(as_factor(fert1$typ))
-fert2$typ <- as.character(as_factor(fert2$typ))
-freeFert$typ <- as.character(as_factor(freeFert$typ))
-leftOverFert$typ <- as.character(as_factor(leftOverFert$typ))
+fert1$typ <- toupper(as.character(as_factor(fert1$typ)))
+fert2$typ <- toupper(as.character(as_factor(fert2$typ)))
+freeFert$typ <- toupper(as.character(as_factor(freeFert$typ)))
+leftOverFert$typ <- toupper(as.character(as_factor(leftOverFert$typ)))
+
+# to match conversion table make NPK, generic NPK (NGA)
+fert1$typ <- gsub("NPK", "generic NPK (NGA)", fert1$typ)
+fert2$typ <- gsub("NPK", "generic NPK (NGA)", fert2$typ)
+freeFert$typ <- gsub("NPK", "generic NPK (NGA)", freeFert$typ)
+leftOverFert$typ <- gsub("NPK", "generic NPK (NGA)", leftOverFert$typ)
 
 # for now set composite manure and other values to NA
 bad <- c("Composite Manure", "Other (specify)")
@@ -101,18 +112,16 @@ freeFert$typ <- ifelse(freeFert$typ %in% bad, NA, freeFert$typ)
 leftOverFert$typ <- ifelse(leftOverFert$typ %in% bad, NA, leftOverFert$typ)
 
 # provide a nitrogen component value for npk and urea (from Michiel's file)
-typ <- c("NPK", "UREA")
-n <- c(0.27, 0.46)
-p <- c(0.05668, 0)
-k <- c(0.1079, 0)
-comp <- data.frame(typ, n, p, k)
+conv <- read.csv("c:/users/tomas/documents/lei/data/Fert_comp.csv") %>%
+  transmute(typ=Fert_type2, n=N_share/100, p=P_share/100) %>%
+  filter(typ %in% unique(fert1$typ))
 
-fert1 <- left_join(fert1, comp)
-fert2 <- left_join(fert2, comp)
-freeFert <- left_join(freeFert, comp)
-leftOverFert <- left_join(leftOverFert, comp)
-
-rm(list=c("comp", "typ", "n", "p", "k"))
+# join the fertilizer information with the conversion
+# table
+fert1 <- left_join(fert1, conv)
+fert2 <- left_join(fert2, conv)
+freeFert <- left_join(freeFert, conv)
+leftOverFert <- left_join(leftOverFert, conv)
 
 fert <- rbind(fert1, fert2)
 
@@ -163,10 +172,16 @@ rm(list=c("bad", "fert", "fert1", "fert2", "freeFert", "leftOverFert", "otherFer
 # world bank provides a complete set of
 # area measurements
 areas <- read_dta("../areas_nga_y2_imputed.dta") %>%
-  select(hhid=case_id, plotid=plotnum, area=area_gps_mi_50)
+  select(hhid=case_id, plotid=plotnum,
+         area_gps=area_gps_mi_50,
+         area_farmer=area_sr)
 
-areas$area <- ifelse(areas$area %in% 0, NA, areas$area)
+areas$area_gps <- ifelse(areas$area_gps %in% 0, NA, areas$area_gps)
 
+areaTotal <- group_by(areas, hhid) %>%
+  summarise(area_tot = sum(area_gps, na.rm=TRUE))
+
+areaTotal$area_tot <- ifelse(areaTotal$area_tot %in% 0, NA, areaTotal$area_tot)
 
 #######################################
 ############### LABOUR ################
@@ -259,8 +274,8 @@ big <- c(101, 102, 103, 104, 105, 106, 107,
 lvstk <- lvstk[lvstk$lvstk %in% big,]
 lvstk[is.na(lvstk)] <- 0
 
-lvstk <- ddply(lvstk, .(lvstk), transform,
-               valu=ifelse(is.na(valu), mean(prc, na.rm=TRUE)*qty, valu))
+lvstk <- group_by(lvstk, lvstk) %>% mutate(valu_avg=mean(prc, na.rm=TRUE)*qty)
+lvstk$valu <- ifelse(is.na(lvstk$valu), lvstk$valu_avg, lvstk$valu)
 
 # calculate per houshold livestock wealth
 lvstk <- group_by(lvstk, hhid) %>%
@@ -280,8 +295,8 @@ big <- c(101, 102, 103, 104, 105, 106, 107,
 
 lvstk2 <- lvstk2[lvstk2$lvstk %in% big,]
 
-lvstk2 <- ddply(lvstk2, .(lvstk), transform,
-               valu=ifelse(is.na(valu), mean(prc, na.rm=TRUE)*qty, valu))
+lvstk2 <- group_by(lvstk2, lvstk) %>% mutate(valu_avg=mean(prc, na.rm=TRUE)*qty)
+lvstk2$valu <- ifelse(is.na(lvstk2$valu), lvstk2$valu_avg, lvstk2$valu)
 
 # calculate per houshold livestock wealth
 lvstk2 <- group_by(lvstk2, hhid) %>%
@@ -321,7 +336,7 @@ cropping <- dplyr::filter(cropping, cropcode %in% 1080)
 
 cropping <- dplyr::mutate(cropping,
                           monoCrop=ifelse(cropin %in% 1, 1, 0),
-                          interCrop=ifelse(cropin %in% 2, 1, 0),
+                          inter_crop=ifelse(cropin %in% 2, 1, 0),
                           relayCrop=ifelse(cropin %in% 3, 1, 0),
                           mixCrop=ifelse(cropin %in% 4, 1, 0),
                           alleyCrop=ifelse(cropin %in% 5, 1, 0),
@@ -342,48 +357,47 @@ irrig$irrig <- ifelse(irrig$irrig %in% 1, 1, 0)
 ########### CROSS SECTION #############
 #######################################
 
-data2012 <- left_join(oput_maize, chem)
-data2012 <- left_join(data2012, areas)
-data2012 <- left_join(data2012, lab1)
-data2012 <- left_join(data2012, lab2)
-data2012 <- left_join(data2012, cropping)
-data2012 <- left_join(data2012, irrig)
-data2012 <- left_join(data2012, implmt)
-data2012 <- left_join(data2012, lvstk)
-data2012 <- left_join(data2012, lvstk2)
-data2012 <- left_join(data2012, geo)
+NGA2012 <- left_join(oput_maize, chem)
+NGA2012 <- left_join(NGA2012, areas)
+NGA2012 <- left_join(NGA2012, lab1)
+NGA2012 <- left_join(NGA2012, lab2)
+NGA2012 <- left_join(NGA2012, cropping)
+NGA2012 <- left_join(NGA2012, irrig)
+NGA2012 <- left_join(NGA2012, implmt)
+NGA2012 <- left_join(NGA2012, lvstk)
+NGA2012 <- left_join(NGA2012, lvstk2)
+NGA2012 <- left_join(NGA2012, geo)
+NGA2012 <- left_join(NGA2012, areaTotal)
 
 # -------------------------------------
 # Make some new variables
 # -------------------------------------
 
-data2012 <- ddply(data2012, .(hhid), transform, area_tot=sum(area))
-
 # if there is an NA value for any type of
 # asset set to zero to calculate total assets per plot
 
-data2012$implmt_value <- ifelse(is.na(data2012$implmt_value), 0, data2012$implmt_value)
-data2012$lvstk_valu <- ifelse(is.na(data2012$lvstk_valu), 0, data2012$lvstk_valu)
-data2012$lvstk2_valu <- ifelse(is.na(data2012$lvstk2_valu), 0, data2012$lvstk2_valu)
+NGA2012$implmt_value <- ifelse(is.na(NGA2012$implmt_value), 0, NGA2012$implmt_value)
+NGA2012$lvstk_valu <- ifelse(is.na(NGA2012$lvstk_valu), 0, NGA2012$lvstk_valu)
+NGA2012$lvstk2_valu <- ifelse(is.na(NGA2012$lvstk2_valu), 0, NGA2012$lvstk2_valu)
 
 # per hectacre
-data2012 <- mutate(data2012,
-             yld=qty/area,
-             N=N/area,
-             P=P/area,
+NGA2012 <- mutate(NGA2012,
+             yld=qty/area_gps,
+             N=N/area_gps,
+             P=P/area_gps,
              asset=(implmt_value + lvstk2_valu)/area_tot
 )
 
-data2012 <- select(data2012, -plotid, -qty)
+NGA2012 <- select(NGA2012, -qty)
 
 # add final variables
-data2012 <- mutate(data2012,
+NGA2012 <- mutate(NGA2012,
              N2=N^2,
              asset2=asset^2,
-             area2=area^2,
+             area2=area_gps^2,
              harv_lab2=harv_lab^2,
              surveyyear=2012
 )
 
 # save to file
-write_dta(data2012, "C:/Users/Tomas/Documents/Work/LEI/NGA12_data.dta")
+write_dta(NGA2012, "C:/Users/Tomas/Documents/Work/LEI/NGA12_data.dta")
