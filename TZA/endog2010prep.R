@@ -1,5 +1,6 @@
 # -------------------------------------
-# prepare datframe for endogeneity 2010
+# prepare dataframe for the endogeneity
+# analysis of data for 2010
 
 library(haven)
 library(stringr)
@@ -18,15 +19,13 @@ polInt2010$y2_hhid <- ifelse(str_length(polInt2010$y2_hhid) < 16,
 
 # -------------------------------------
 # read in the official number of vouchers
-# distributed to each region
+# distributed to each region in 2010-11
 
-dataPath <- "C:/Users/Tomas/Documents/LEI/pol/data"
-
-VTotal10 <- read.csv(paste(dataPath, "voucher201011.csv", sep="/"))
+VTotal10 <- read.csv("voucher/voucher201011.csv")
 
 VTotal10$Region <- toupper(VTotal10$Region)
 names(VTotal10) <- c("reg", "households", "Vtot1", "Vtot2")
-VTotal10$reg <- gsub(" ", "", VTotal10$reg)
+VTotal10$reg <- gsub(" ", "", VTotal10$reg) # remove white space
 
 VTotal10$vtot <- VTotal10$Vtot1 + VTotal10$Vtot2
 
@@ -78,6 +77,7 @@ ed$end <- as.integer(as.character(ed$end))
 ed$end <- ifelse(ed$end %in% 9999, NA, ed$end)
 
 # join with HH10 dataframe
+
 HH10 <- left_join(HH10, ed)
 HH10$educ <- HH10$end - (HH10$yob + HH10$start)
 HH10 <- select(HH10, -start, -end, -yob)
@@ -100,24 +100,34 @@ voucher10$vouch2 <- as_factor(voucher10$vouch2)
 voucher10$vouch1 <- ifelse(voucher10$vouch1 %in% "YES", 1, 0)
 voucher10$vouch2 <- ifelse(voucher10$vouch2 %in% "YES", 1, 0)
 voucher10$vouchTotal <- voucher10$vouch1 + voucher10$vouch2
+voucher10 <- group_by(voucher10, y2_hhid) %>%
+  summarise(vouchTotal=sum(vouchTotal, na.rm=TRUE))
+
+# binary outcome for voucher (1/0)
+voucher10$vouchAny <- ifelse(voucher10$vouchTotal %in% 0, 0, 1)
+
 
 # -------------------------------------
 # join data and look at first stage using
 # the 2010 data
 
-data <- left_join(voucher10, HH10)
-data <- left_join(data, geo10)
-data <- left_join(data, polInt2010[, c(1, 7:10)])
-data <- left_join(data, VTotal10)
+endog2010 <- left_join(voucher10, HH10)
+endog2010 <- left_join(endog2010, unique(geo10))
+endog2010 <- left_join(endog2010, polInt2010[, c(1, 7:10)])
+endog2010 <- left_join(endog2010, VTotal10)
+
+# -------------------------------------
+# kill of the islands which we do not use
+# in the analysis
 
 islands <- c("KASKAZINI-UNGUJA", "ZANZIBAR SOUTH AND CENTRAL",
              "ZANZIBAR WEST", "KASKAZINI-PEMBA", "KUSINI-PEMBA")
 
-data <- data[!data$reg %in% islands,]
+endog2010 <- endog2010[!endog2010$reg %in% islands,]
+endog2010 <- rename(endog2010, hhid2010=y2_hhid)
 
-# try a binomial model
+# -------------------------------------
+# write to a file to be used in analysis
 
-modl <- glm(cbind(vouchTotal, 2-vouchTotal) ~ sex + dist2town +
-              dist2market + dist2HQ + ccm_prez10 + split_prez10 + vtot + SPEI +
-              age*years + households + I(age^2),
-            family=binomial, data=data)
+setwd("c:/users/tomas/documents/lei")
+write_dta(endog2010, "endog2010.dta")
