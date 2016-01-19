@@ -1,5 +1,5 @@
 # -------------------------------------
-# prepare datframe for endogeneity 2012
+# prepare dataframe for endogeneity 2012
 
 library(haven)
 library(stringr)
@@ -17,21 +17,25 @@ polInt2012 <- read.csv("polInt2012.csv")
 # read in the official number of vouchers
 # distributed to each region
 
-dataPath <- "C:/Users/Tomas/Documents/LEI/pol/data"
-
-VTotal12 <- read.csv(paste(dataPath, "voucher201213.csv", sep="/"))
+VTotal12 <- read.csv("voucher/voucher201213.csv")
 
 VTotal12$Region <- toupper(VTotal12$Region)
 names(VTotal12) <- c("reg", "households", "Vtot1", "Vtot2")
-VTotal12$reg <- gsub(" ", "", VTotal12$reg)
+VTotal12$reg <- gsub(" ", "", VTotal12$reg) # remove white space
 
 VTotal12$vtot <- VTotal12$Vtot1 + VTotal12$Vtot2
+
+# for now remove the second Njombe. There are two
+# in the original data, not clear why???
+
+VTotal12 <- VTotal12[-3, ]
 
 # -------------------------------------
 # read in household geovariables file
 # for 2012
 
-geo12 <- read.csv("C:/Users/Tomas/Documents/LEI/Data/TZA/TZA_geo_total_2012.csv", stringsAsFactors=F) %>% 
+geo12 <- read.csv("C:/Users/Tomas/Documents/LEI/Data/TZA/TZA_geo_total_2012.csv",
+                  stringsAsFactors=F) %>% 
   select(y3_hhid, dist2Rd=dist01, dist2town=dist02, dist2market=dist03,
          dist2HQ=dist05, SPEI, reg=NAME_1, dis=NAME_2)
 
@@ -49,7 +53,6 @@ HH12 <- read_dta(file.path(dataPath, "HH_SEC_B.dta")) %>%
 # 99 in years variable means that the household member has
 # lived in the community all his/her life
 HH12$years <- as.numeric(HH12$years)
-summary(HH12$years[HH12$status %in% 1])
 HH12$years <- ifelse(HH12$years %in% 99, HH12$age, HH12$years)
 HH12$status <- as_factor(HH12$status)
 HH12$sex <- as_factor(HH12$sex)
@@ -80,6 +83,7 @@ HH12$educ <- ifelse(HH12$educ < 0, NA, HH12$educ)
 
 HH12_x <- group_by(HH12, y3_hhid) %>% summarise(educ1555=sum(educ[cage %in% 2], na.rm=T))
 HH12 <- left_join(HH12, HH12_x); rm(HH12_x)
+HH12 <- filter(HH12, status %in% "HEAD") %>% select(-indidy3, -status)
 
 # -------------------------------------
 # total number of vouchers received by
@@ -93,3 +97,38 @@ voucher12$vouch2 <- as_factor(voucher12$vouch2)
 voucher12$vouch1 <- ifelse(voucher12$vouch1 %in% "YES", 1, 0)
 voucher12$vouch2 <- ifelse(voucher12$vouch2 %in% "YES", 1, 0)
 voucher12$vouchTotal <- voucher12$vouch1 + voucher12$vouch2
+voucher12 <- group_by(voucher12, y3_hhid) %>% summarise(vouchTotal=sum(vouchTotal, na.rm=TRUE))
+
+# binary response if any vouchers received (1/0)
+voucher12$vouchAny <- ifelse(voucher12$vouchTotal %in% 0, 0, 1)
+
+# -------------------------------------
+# join the data
+
+endog2012 <- left_join(voucher12, HH12)
+endog2012 <- left_join(endog2012, unique(geo12))
+endog2012 <- left_join(endog2012, polInt2012[, c(1, 7:10)])
+endog2012 <- left_join(endog2012, VTotal12)
+
+islands <- c("KASKAZINI-UNGUJA", "ZANZIBAR SOUTH AND CENTRAL",
+             "ZANZIBAR WEST", "KASKAZINI-PEMBA", "KUSINI-PEMBA")
+
+endog2012 <- endog2012[!endog2012$reg %in% islands,]
+
+# -------------------------------------
+# use the panel key to change y3_hhid to
+# y2_hhid
+
+setwd("c:/users/tomas/documents/lei/data/TZA/TZA_2012_LSMS_v01_M_STATA_English_labels")
+panel.key <- read_dta("NPSY3.PANEL.KEY.dta") %>%
+  select(y3_hhid, hhid2010=y2_hhid)
+panel.key$y3_hhid <- zap_empty(panel.key$y3_hhid)
+panel.key$hhid2010 <- zap_empty(panel.key$hhid2010)
+panel.key <- panel.key[complete.cases(panel.key), ]
+panel.key <- unique(panel.key)
+endog2012 <- left_join(endog2012, unique(panel.key))
+
+# -------------------------------------
+# write to a file to be used in analysis
+setwd("c:/users/tomas/documents/lei")
+write_dta(endog2012, "endog2012.dta")
