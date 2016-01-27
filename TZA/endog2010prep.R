@@ -71,22 +71,24 @@ HH10$cage <- cut(HH10$age, breaks = c(0, 15, 55, max(HH10$age, na.rm=TRUE)),
 # 2010
 
 ed <- read_dta(file.path(dataPath, "HH_SEC_C.dta")) %>%
-  select(y2_hhid, indidy2, start=hh_c04, end=hh_c08)
+  select(y2_hhid, indidy2, ed_any=hh_c03, start=hh_c04, end=hh_c08)
 
+ed$ed_any <- as_factor(ed$ed_any)
 ed$end <- as.integer(as.character(ed$end))
 ed$end <- ifelse(ed$end %in% 9999, NA, ed$end)
 
 # join with HH10 dataframe
 
 HH10 <- left_join(HH10, ed)
-HH10$educ <- HH10$end - (HH10$yob + HH10$start)
+HH10$education <- HH10$end - (HH10$yob + HH10$start)
+HH10$education <- ifelse(HH10$ed_any %in% "No", 0, HH10$education)
 HH10 <- select(HH10, -start, -end, -yob)
-HH10$educ <- ifelse(HH10$educ < 0, NA, HH10$educ)
+HH10$education <- ifelse(HH10$education < 0, NA, HH10$education)
 
 # summarise the data 
-HH10_x <- group_by(HH10, y2_hhid) %>% summarise(educ1555=sum(educ[cage %in% 2], na.rm=T))
+HH10_x <- group_by(HH10, y2_hhid) %>% summarise(education1555=sum(education[cage %in% 2], na.rm=T), N1555=sum(cage %in% 2))
 HH10 <- left_join(HH10, HH10_x); rm(HH10_x)
-HH10 <- filter(HH10, status %in% "HEAD") %>% select(-indidy2, -status)
+HH10 <- filter(HH10, status %in% "HEAD") %>% select(-indidy2, -status, -cage, -ed_any)
 
 # -------------------------------------
 # total number of vouchers received by
@@ -108,8 +110,7 @@ voucher10$vouchAny <- ifelse(voucher10$vouchTotal %in% 0, 0, 1)
 
 
 # -------------------------------------
-# join data and look at first stage using
-# the 2010 data
+# join all the data 
 
 endog2010 <- left_join(voucher10, HH10)
 endog2010 <- left_join(endog2010, unique(geo10))
