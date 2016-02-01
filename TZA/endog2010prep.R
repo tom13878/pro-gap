@@ -53,7 +53,7 @@ HH10 <- read_dta(file.path(dataPath, "HH_SEC_B.dta")) %>%
 HH10$years <- as.numeric(HH10$years)
 HH10$years <- ifelse(HH10$years %in% 99, HH10$age, HH10$years)
 HH10$status <- as_factor(HH10$status)
-HH10$sex <- as_factor(HH10$sex)
+HH10$sex <- toupper(as_factor(HH10$sex))
 HH10$yob <- as.integer(HH10$yob)
 
 # make a new variable cage which splits individuals
@@ -131,4 +131,4 @@ endog2010 <- rename(endog2010, hhid2010=y2_hhid)
 # write to a file to be used in analysis
 
 setwd("c:/users/tomas/documents/lei")
-write_dta(endog2010, "endog2010.dta")
+saveRDS(endog2010, "endog2010.rds")
