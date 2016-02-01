@@ -280,36 +280,61 @@ tc$trans <- ifelse(tc$trans %in% 1, 1, 0)
 #######################################
 
 # WDswitch
-# se <- read_dta(file.path(dataPath, "TZA\\2010\\Data\\TZNPS2HH1DTA\\HH_SEC_B.dta")) %>%
-se <- read_dta(file.path(dataPath, "HH_SEC_B.dta")) %>%
-  filter(hh_b05 %in% 1) %>% # 1 for head of household
-  dplyr::select(y2_hhid, indidy2, sex=hh_b02, yob=hh_b03_1, age=hh_b04)
+# HH10 <- read_dta(file.path(dataPath, "TZA\\2010\\Data\\TZNPS2HH1DTA\\HH_SEC_B.dta")) %>%
+HH10 <- read_dta(file.path(dataPath, "HH_SEC_B.dta")) %>%
+  select(y2_hhid, indidy2, status=hh_b05, sex=hh_b02,
+         yob=hh_b03_1, age=hh_b04, years=hh_b25)
 
-se$sex <- ifelse(se$sex %in% 2, 1, 0)
-se$yob <- as.integer(as.character(se$yob))
+HH10$years <- as.numeric(HH10$years)
+HH10$years <- ifelse(HH10$years %in% 99, HH10$age, HH10$years)
+HH10$status <- as_factor(HH10$status)
+HH10$sex <- toupper(as_factor(HH10$sex))
+HH10$yob <- as.integer(HH10$yob)
 
-# education
+# make a new variable cage (cut age) which splits
+# individuals according to their age group with
+# breaks at 15, 55 and the max age
+
+HH10$cage <- cut(HH10$age, breaks = c(0, 15, 55, max(HH10$age, na.rm=TRUE)),
+                 labels=1:3, include.lowest = TRUE, right = TRUE)
+
+# -------------------------------------
+# education of household members and sum
+# of education of all household members
+# between the ages of 15 and 55
+
 # WDswitch
 # ed <- read_dta(file.path(dataPath, "TZA\\2010\\Data\\TZNPS2HH1DTA\\HH_SEC_C.dta")) %>%
 ed <- read_dta(file.path(dataPath, "HH_SEC_C.dta")) %>%
-  dplyr::select(y2_hhid, indidy2, start=hh_c04, end=hh_c08)
+  select(y2_hhid, indidy2, ed_any=hh_c03, start=hh_c04, end=hh_c08)
 
+ed$ed_any <- as_factor(ed$ed_any) # ever went to school
 ed$end <- as.integer(as.character(ed$end))
 ed$end <- ifelse(ed$end %in% 9999, NA, ed$end)
 
-# join se and ed to find years in school
-se <- left_join(se, ed) %>% dplyr::select(-indidy2)
-rm("ed")
+# join with HH10 dataframe
 
-se$educ <- se$end - (se$yob + se$start)
-se <- dplyr::select(se, -start, -end, -yob)
+HH10 <- left_join(HH10, ed)
+HH10$education <- HH10$end - (HH10$yob + HH10$start)
+HH10$education <- ifelse(HH10$ed_any %in% "No", 0, HH10$education)
+HH10 <- select(HH10, -start, -end, -yob)
 
-# if anyone received negative years of schooling, set to NA
-se$educ <- ifelse(se$educ < 0, NA, se$educ)
+# remove negative years of education (56 obs)
+HH10$education <- ifelse(HH10$education < 0, NA, HH10$education)
 
-# still some people have received a lot of schooling!!!!
-# also NA values!
+# summarise the data: get sum of education
+# of household members 15-55 and number of
+# household members 15:55
+HH10_x <- group_by(HH10, y2_hhid) %>%
+  summarise(education1555=sum(education[cage %in% 2], na.rm=T),
+            N1555=sum(cage %in% 2))
+HH10 <- left_join(HH10, HH10_x); rm(HH10_x)
 
+# filter on household head
+HH10 <- filter(HH10, status %in% "HEAD") %>%
+  select(-indidy2, -status, -cage, -ed_any)
+
+# -------------------------------------
 # plot ownership
 
 # WDswitch
@@ -333,11 +358,11 @@ TZA2010 <- left_join(TZA2010, own)
 TZA2010 <- left_join(TZA2010, implmt)
 TZA2010 <- left_join(TZA2010, geo)
 TZA2010 <- left_join(TZA2010, rural)
-TZA2010 <- left_join(TZA2010, se)
+TZA2010 <- left_join(TZA2010, HH10)
 TZA2010 <- left_join(TZA2010, tc)
 TZA2010 <- left_join(TZA2010, areaTotal)
 
-rm(list=ls()[!ls() %in% "TZA2010"])
+# rm(list=ls()[!ls() %in% "TZA2010"])
 
 # -------------------------------------
 # Make some new variables
@@ -386,9 +411,7 @@ TZA2010 <- mutate(TZA2010,
              surveyyear=2010
 )
 
+rm(list=ls()[!ls() %in% c("TZA2012", "TZA2010")])
 # save to file
-# save(TZA2010, file=".\\Analysis\\TZA\\Data\\TZA10_data.RData")
-# write.csv(TZA2010, "C:/Users/Tomas/Documents/LEI/TZA10_data.csv", row.names=FALSE)
-
-
-
+# saveRDS(TZA2010, file=".\\Analysis\\TZA\\Data\\TZA10_data.rds")
+# saveRDS(TZA2010, "C:/Users/Tomas/Documents/LEI/TZA10_data.rds")

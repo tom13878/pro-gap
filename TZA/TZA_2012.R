@@ -207,7 +207,7 @@ rural$rural <- ifelse(rural$rural %in% 1, 1, 0)
 
 # WDswitch
 # geo <- read.csv(file.path(wdPath, "Analysis\\TZA\\Data\\TZA_geo_total_2012.csv"), stringsAsFactors=F) %>%
-geo <- read.csv("C:/Users/Tomas/Documents/LEI/Data/TZA/TZA_geo_total_2012.csv", stringsAsFactors=F) %>% 
+geo <- readRDS("C:/Users/Tomas/Documents/LEI/Data/TZA/TZA_data_2012.rds") %>% 
   dplyr::select(y3_hhid, lon, lat, plotnum, SPEI, RootDepth, region=NAME_1,
                 AEZ=land03, ph=ph_sd1_sd3, ph2=ph_sd1_sd5,
                 SOC=SOC_sd1_sd3, SOC2=SOC_sd1_sd5, rain=gsRainfall,
@@ -275,36 +275,53 @@ tc$trans <- ifelse(tc$trans %in% 1, 1, 0)
 #######################################
 
 # WDswitch
-# se <- read_dta(file.path(dataPath, "TZA\\2012\\Data\\HH_SEC_B.dta")) %>%
-se <- read_dta(file.path(dataPath, "HH_SEC_B.dta")) %>%
-  filter(hh_b05 %in% 1) %>% # 1 for head of household
-  dplyr::select(y3_hhid, indidy3, sex=hh_b02, yob=hh_b03_1, age=hh_b04)
+# HH12 <- read_dta(file.path(dataPath, "TZA\\2012\\Data\\HH_SEC_B.dta")) %>%
+HH12 <- read_dta(file.path(dataPath, "HH_SEC_B.dta")) %>%
+  select(y3_hhid, indidy3, status=hh_b05, sex=hh_b02,
+         yob=hh_b03_1, age=hh_b04, years=hh_b26)
 
-se$sex <- ifelse(se$sex %in% 2, 1, 0)
-se$yob <- as.integer(as.character(se$yob))
+# 99 in years variable means that the household member has
+# lived in the community all his/her life
+HH12$years <- as.numeric(HH12$years)
+HH12$years <- ifelse(HH12$years %in% 99, HH12$age, HH12$years)
+HH12$status <- as_factor(HH12$status)
+HH12$sex <- as_factor(HH12$sex)
+HH12$yob <- as.integer(HH12$yob)
 
-# education
+HH12$cage <- cut(HH12$age, breaks = c(0, 15, 55, max(HH12$age, na.rm=TRUE)),
+                 labels=1:3, include.lowest = TRUE, right = TRUE)
 
-# WDswitch
-# ed <- read_dta(file.path(dataPath, "TZA\\2012\\Data\\HH_SEC_C.dta")) %>%
+# -------------------------------------
+# education of household head and sum of
+# education of all household members
+# between the ages of 15 and 55
+
 ed <- read_dta(file.path(dataPath, "HH_SEC_C.dta")) %>%
-  dplyr::select(y3_hhid, indidy3, start=hh_c04, end=hh_c08)
+  select(y3_hhid, indidy3, ed_any=hh_c03, start=hh_c04, end=hh_c08)
 
 ed$end <- as.integer(as.character(ed$end))
 ed$end <- ifelse(ed$end %in% 9999, NA, ed$end)
+ed$ed_any <- as_factor(ed$ed_any) # any education
 
-# join se and ed to find years in school
-se <- left_join(se, ed) %>% dplyr::select(-indidy3)
-rm("ed")
-
-se$educ <- se$end - (se$yob + se$start)
-se <- dplyr::select(se, -start, -end, -yob)
+# join HH10 and ed to find amount of schooling
+HH12 <- left_join(HH12, ed)
+HH12$education <- HH12$end - (HH12$yob + HH12$start)
+HH12$education <- ifelse(HH12$ed_any %in% "NO", 0, HH12$education)
+HH12 <- select(HH12, -start, -end, -yob)
 
 # if anyone received negative years of schooling, set to NA
-se$educ <- ifelse(se$educ < 0, NA, se$educ)
+HH12$education <- ifelse(HH12$education < 0, NA, HH12$education)
 
-# still some people have received a lot of schooling!!!!
+# summarise the data: get sum of education
+# of household members 15-55 and number of
+# household members 15-55
+HH12_x <- group_by(HH12, y3_hhid) %>%
+  summarise(education1555=sum(education[cage %in% 2], na.rm=T),
+            N1555=sum(cage %in% 2))
+HH12 <- left_join(HH12, HH12_x); rm(HH12_x)
+HH12 <- filter(HH12, status %in% "HEAD") %>% select(-indidy3, -status, -cage, -ed_any)
 
+# -------------------------------------
 # plot ownership
 
 # WDswitch
@@ -328,7 +345,7 @@ TZA2012 <- left_join(TZA2012, own)
 TZA2012 <- left_join(TZA2012, implmt)
 TZA2012 <- left_join(TZA2012, geo)
 TZA2012 <- left_join(TZA2012, rural)
-TZA2012 <- left_join(TZA2012, se)
+TZA2012 <- left_join(TZA2012, HH12)
 TZA2012 <- left_join(TZA2012, tc)
 TZA2012 <- left_join(TZA2012, areaTotal)
 
