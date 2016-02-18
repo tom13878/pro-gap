@@ -33,9 +33,9 @@ VTotal12 <- VTotal12[-3, ]
 # read in household geovariables file
 # for 2012
 
-geo12 <- read_dta("C:/Users/Tomas/Documents/LEI/Data/TZA/TZA_2012_LSMS_v01_M_STATA_English_labels/HouseholdGeovars_Y3.dta") %>%
+geo12 <- readRDS("C:/Users/Tomas/Documents/LEI/Data/TZA/TZA_geo_2012.rds") %>%
   select(y3_hhid, dist2Rd=dist01, dist2town=dist02, dist2market=dist03,
-         dist2HQ=dist05)
+         dist2HQ=dist05, SPEI)
 
 # -------------------------------------
 # read in household questionnaire to 

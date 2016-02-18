@@ -33,12 +33,10 @@ VTotal10$vtot <- VTotal10$Vtot1 + VTotal10$Vtot2
 # read in household geovariables file
 
 dataPath <- "C:/Users/Tomas/Documents/LEI/data/TZA"
-geo10 <- read.csv(file.path(dataPath, "TZA_geo_total_2010.csv"), stringsAsFactors=F) %>%
+geo10 <- readRDS(file.path(dataPath, "TZA_geo_2010.rds")) %>%
   select(y2_hhid, dist2town=dist02, dist2market=dist03, dist2HQ=dist05,
          SPEI, reg=NAME_1, dis=NAME_2)
 
-geo10$y2_hhid <- ifelse(str_length(geo10$y2_hhid) < 16,
-                        paste("0", geo10$y2_hhid, sep=""), geo10$y2_hhid)
 geo10$reg <- toupper(geo10$reg)
 
 # -------------------------------------
@@ -130,5 +128,5 @@ endog2010 <- rename(endog2010, hhid2010=y2_hhid)
 # -------------------------------------
 # write to a file to be used in analysis
 
-setwd("c:/users/tomas/documents/lei")
+setwd("c:/users/tomas/documents/lei/data/TZA")
 saveRDS(endog2010, "endog2010.rds")
