@@ -27,7 +27,12 @@ endog2012$dist2Rd <- NULL
 # needed
 
 endog2012$y3_hhid <- endog2012$reg2012 <- NULL 
-endog2012 <- endog2012[, c(21, 1:20, 22:23)]
+endog2012$Vtot1 <- endog2012$Vtot2 <- NULL 
+endog2012$ccm_leg10 <- endog2012$split_leg10 <- NULL 
+
+endog2010$Vtot1 <- endog2010$Vtot2 <- NULL
+endog2010$ccm_leg10 <- endog2010$split_leg10 <- NULL
+endog2010$reg <- endog2010$dis <- NULL
 
 # -------------------------------------
 # make some year factor variables
@@ -39,7 +44,7 @@ endog2012$surveyyear <- 2012 # factor(2, levels=1:2, labels=c("2010", "2012"))
 # join each endog database with the 
 # corresponding final data sample
 
-setwd("c:/users/tomas/downloads")
+setwd("c:/users/tomas/documents/lei/data/TZA")
 db0 <- readRDS("db0.rds")
 endog2010 <- inner_join(db0, endog2010)
 
@@ -53,11 +58,8 @@ endog2012$hhid2012 <- endog2012$hhtype <- endog2012$hhloc <- NULL
 # -------------------------------------
 # join the data together
 
-endog2010 <- endog2010[, -c(45:47)]
-
 endog <- rbind(endog2010, endog2012) 
 endog$sex <- as_factor(endog$sex)
-endog$cage <- as_factor(endog$cage)
 endog$surveyyear <- factor(endog$surveyyear)
 
 setwd("c:/users/tomas/documents/lei")
