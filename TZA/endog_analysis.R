@@ -3,6 +3,7 @@
 # -------------------------------------
 
 options(scipen=999)
+library(dplyr)
 
 # -------------------------------------
 # read in the prepared data and select
@@ -12,17 +13,36 @@ setwd("c:/users/tomas/documents/lei")
 endog <- readRDS("endog.rds")
 endog <- endog[complete.cases(endog),]
 
+# make variables for CRE
+endog$lasset <- log(endog$asset)
+endog_x <- group_by(endog, hhid2010) %>%
+  summarise(lassets_bar = mean(lasset),
+            lab_bar = mean(lab),
+            SPEI_bar = mean(SPEI),
+            N_bar = mean(N),
+            SOC_bar = mean(SOC),
+            SOC2_bar = mean(SOC2),
+            irrig_bar = mean(irrig),
+            manure_bar = mean(manure),
+            pest_bar = mean(pest),
+            ph_bar = mean(ph),
+            ph2_bar = mean(ph2)
+            )
+endog <- left_join(endog, endog_x); rm(endog_x)
+
 # -------------------------------------
 # first stage model - logit/probit model
 # (1/0) if farmer received a voucher or not
 
-# time averages? It would just be the assets,
-# everything else is likely to be invariable 
-# over time
+# time averages: assets, labour, anything
+# affecting a farmers decision to get fertilizer
+# including the soil quality
 
 modl.probit <- glm(cbind(vouchAny, 1-vouchAny) ~ surveyyear + ccm_prez10*split_prez10 +
                      log(vtot) + dist2HQ + dist2market + dist2town +
-                     years + log(asset) + age + education + education1555 + N1555,
+                     years + lasset + age + lab + education + education1555 + N1555 +
+                     lassets_bar + lab_bar + SPEI_bar + N_bar + SOC_bar + manure_bar +
+                    pest_bar + ph_bar + ph2_bar,
                    family=binomial(link=probit), data=endog)
 
 # goodness of fit test for the probit 
@@ -38,9 +58,9 @@ correct <- as.numeric(predicted == true)
 # each outcome (y=1 and y=0)
 
 correct1 <- as.numeric(predicted[true == 1] == true[true == 1])
-100*table(correct1)/sum(table(correct1)) # correct only 23.5 % of the time
+100*table(correct1)/sum(table(correct1)) # correct only ~ 48% of the time
 correct0 <- as.numeric(predicted[true == 0] == true[true == 0])
-100*table(correct0)/sum(table(correct0)) # correct 97% of the time
+100*table(correct0)/sum(table(correct0)) # correct ~ 97% of the time
 
 # overall percent correctly predicted as above.
 # Show that it is the same as weighted average
