@@ -20,7 +20,7 @@ options(scipen=999)
 #######################################
 
 # WDswitch
-oput <- read_dta(file.path(dataPath, "Post-Harvest/sect9_ph_w2.dta")) %>%
+oput <- read_dta(file.path(dataPath, "ETH201314/Post-Harvest/sect9_ph_w2.dta")) %>%
   dplyr::select(holder_id, household_id2, parcel_id, field_id,
                 crop=crop_code, qty=ph_s9q05)
 
@@ -55,7 +55,7 @@ rm("oput", "legumes")
 
 # parcel level
 # WDswitch
-parcel <- read_dta(file.path(dataPath, "Post-Planting/sect2_pp_w2.dta")) %>%
+parcel <- read_dta(file.path(dataPath, "ETH201314/Post-Planting/sect2_pp_w2.dta")) %>%
   dplyr::select(holder_id, household_id2, parcel_id, soil=pp_s2q14, soil_qlty=pp_s2q15)
 
 parcel$soil_type <- as_factor(parcel$soil_type)
@@ -64,7 +64,7 @@ parcel$soil_qlty <- as_factor(parcel$soil_qlty)
 # field level variables
 # WDswitch
 
-field <- read_dta(file.path(dataPath, "Post-Planting/sect3_pp_w2.dta")) %>%
+field <- read_dta(file.path(dataPath, "ETH201314/Post-Planting/sect3_pp_w2.dta")) %>%
   dplyr::select(holder_id, household_id2, parcel_id, field_id,
                 inter_crop=pp_s3q03b, fallow10=pp_s3q03c, fallow_year=pp_s3q03d,
                 extension=pp_s3q11, irrig=pp_s3q12, fert_any=pp_s3q14,
@@ -86,7 +86,7 @@ field$mulch <- ifelse(field$mulch %in% 1, 1, 0)
 # crop level variables
 # WDswitch
 
-crop <- read_dta(file.path(dataPath, "Post-Planting/sect4_pp_w2.dta")) %>%
+crop <- read_dta(file.path(dataPath, "ETH201314/Post-Planting/sect4_pp_w2.dta")) %>%
   dplyr::select(holder_id, household_id2, parcel_id, field_id, crop=crop_code,
                 cropping=pp_s4q02, month=pp_s4q12_a, crop_area=pp_s4q03,
                 herb=pp_s4q06, fung=pp_s4q07, seed_type=pp_s4q11, 
@@ -106,7 +106,7 @@ crop <- filter(crop, crop %in% "MAIZE") %>% select(-crop)
 # unit of observation is not fertilizer
 # WDswitch
 
-fert1 <- read_dta(file.path(dataPath, "Post-Planting/sect3_pp_w2.dta")) %>%
+fert1 <- read_dta(file.path(dataPath, "ETH201314/Post-Planting/sect3_pp_w2.dta")) %>%
   dplyr::select(holder_id, household_id2, parcel_id, field_id, typ=pp_s3q15, qty=pp_s3q16_a,
                 purch=pp_s3q16b, purch_kg=pp_s3q16c, valu=pp_s3q16d)
   
@@ -114,7 +114,7 @@ fert1$typ <- ifelse(fert1$typ %in% 1, "UREA", NA)
 fert1$purch <- ifelse(fert1$purch %in% 1, 1, 0)
 
 # WDswitch  
-fert2 <- read_dta(file.path(dataPath, "Post-Planting/sect3_pp_w2.dta")) %>%
+fert2 <- read_dta(file.path(dataPath, "ETH201314/Post-Planting/sect3_pp_w2.dta")) %>%
   dplyr::select(holder_id, household_id2, parcel_id, field_id, typ=pp_s3q18, qty=pp_s3q19_a,
                 purch=pp_s3q19b, purch_kg=pp_s3q19c, valu=pp_s3q19d) 
 
@@ -173,7 +173,7 @@ rm(fert1, fert2, conv)
 
 # POST PLANTING labour
 # WDswitch
-pp_lab <- read_dta(file.path(dataPath, "Post-Planting/sect3_pp_w2.dta")) %>%
+pp_lab <- read_dta(file.path(dataPath, "ETH201314/Post-Planting/sect3_pp_w2.dta")) %>%
   dplyr::select(holder_id, household_id2, parcel_id, field_id, pp_s3q27_a:pp_s3q29_f) %>%
   transmute(holder_id, household_id2, parcel_id, field_id,
             id1=pp_s3q27_a, lab1=pp_s3q27_b*pp_s3q27_c,
@@ -207,7 +207,7 @@ pp_lab$plant_lab[pp_lab$plant_lab %in% 0] <- NA
 
 # POST HARVEST
 # WDswitch
-ph_lab <- read_dta(file.path(dataPath, "Post-Harvest/sect10_ph_w2.dta")) %>%
+ph_lab <- read_dta(file.path(dataPath, "ETH201314/Post-Harvest/sect10_ph_w2.dta")) %>%
   dplyr::select(holder_id, household_id2, parcel_id, field_id,
                 crop=crop_code, ph_s10q01_a:ph_s10q03_f) %>%
   transmute(holder_id, household_id2, parcel_id, field_id, crop,
@@ -246,7 +246,7 @@ ph_lab$harv_lab[ph_lab$harv_lab %in% 0] <- NA
 #######################################
 
 # WDswitch
-load(file.path(dataPath, "ETH_geo_total_2013.RData"))
+load(file.path(dataPath, "ETH201314/ETH_geo_total_2013.RData"))
 geo <- geo.total.plot %>% 
   dplyr::select(holder_id, household_id2, ea_id2, parcel_id, field_id, lon, lat, SPEI, RootDepth, region=NAME_1,
                 AEZ=ssa_aez09, ph=ph_sd1_sd3, ph2=ph_sd1_sd5,
@@ -262,7 +262,7 @@ geo <- geo.total.plot %>%
 # imputed and original gps measurements
 # included
 # WDswitch
-areas <- read_dta(paste(dataPath, "areas_ETH2013.dta", sep="/"))
+areas <- read_dta(paste(dataPath, "ETH201314/areas_ETH2013.dta", sep="/"))
 areas <- select(areas, holder_id, household_id2,
                 parcel_id, field_id, area_gps, area_gps_mi50,
                 area_farmer=area_sr)
@@ -278,7 +278,7 @@ areaTotal <- group_by(areas, household_id2) %>%
 #######################################
 
 # WDswitch
-se <- read_dta(file.path(dataPath, "Household/sect1_hh_w2.dta")) %>%
+se <- read_dta(file.path(dataPath, "ETH201314/Household/sect1_hh_w2.dta")) %>%
   filter(hh_s1q02 %in% 1) %>% # 1 for head of household
   dplyr::select(household_id2, sex=hh_s1q03, age=hh_s1q04_a,
                 rural)
@@ -288,7 +288,7 @@ se$rural <- ifelse(se$rural %in% 1, 1, 0)
 
 # ownership of a parcel
 # WDswitch
-own <- read_dta(file.path(dataPath, "Post-Planting/sect2_pp_w2.dta")) %>%
+own <- read_dta(file.path(dataPath, "ETH201314/Post-Planting/sect2_pp_w2.dta")) %>%
   dplyr::select(holder_id, household_id2, parcel_id, title=pp_s2q04)
 own$title <- ifelse(own$title %in% 1, 1, 0)  
   
