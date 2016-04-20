@@ -3,12 +3,12 @@
 #######################################
 
 # WDswitch
-dataPath <- "D:\\Data\\IPOP\\SurveyData\\"
-extraDataPath <- "D:\\Dropbox\\Michiel_research\\2285000066 Africa Maize Yield Gap\\Analysis\\TZA\\Data"
-wdPath <- "D:\\Dropbox\\Michiel_research\\2285000066 Africa Maize Yield Gap"
-setwd(wdPath)
+# dataPath <- "D:\\Data\\IPOP\\SurveyData\\"
+# extraDataPath <- "D:\\Dropbox\\Michiel_research\\2285000066 Africa Maize Yield Gap\\Analysis\\TZA\\Data"
+# wdPath <- "D:\\Dropbox\\Michiel_research\\2285000066 Africa Maize Yield Gap"
+# setwd(wdPath)
 
-#dataPath <- "C:/Users/Tomas/Documents/LEI/data/TZA/TZA_2012_LSMS_v01_M_STATA_English_labels"
+dataPath <- "C:/Users/Tomas/Documents/LEI/data/TZA/TZA2012"
 
 
 library(haven)
@@ -21,7 +21,7 @@ options(scipen=999)
 #######################################
 
 # WDswitch
-oput <- read_dta(file.path(dataPath, "TZA\\2012\\Data\\AG_SEC_4A.dta")) %>%
+oput <- read_dta(file.path(dataPath, "AG_SEC_4A.dta")) %>%
 # oput <- read_dta(file.path(dataPath, "AG_SEC_4A.dta")) %>%
   dplyr::select(y3_hhid, plotnum, zaocode, inter_crop=ag4a_04,
          harv_area=ag4a_21, qty=ag4a_28, valu=ag4a_29, hybrd=ag4a_08)
@@ -30,19 +30,43 @@ oput$inter_crop <- ifelse(oput$inter_crop %in% 1, 1, 0)
 oput$hybrd <- ifelse(oput$hybrd %in% 1, 1, 0)
 oput$zaocode <- as.integer(oput$zaocode)
 
+# -------------------------------------
+# create dummy variables for crop groups
+# (fruit, cash crops (permanent),
+# Cereals/Tubers/Roots, cash crops (not permanent),
+# vegetables, legumes)
+# -------------------------------------
+
+fruit <- c(70:74, 76:85, 97:99, 67, 38, 39)
+cashCropsPerm <- c(53:61, 63:66, 18, 34, 21, 75, 44:46) # permanent cash crops
+CTR <- c(11:17, 22:27) # Cereals, Tubers, Roots
+cashCropNPerm <- c(50, 51, 53, 62, 19) # non permanent cash crops
+vegetables <- c(86:96, 100, 101)
 legumes <- c(31, 32, 33, 35, 36, 37, 41, 42, 43, 47, 48)
 
 oput_x <- group_by(oput, y3_hhid, plotnum) %>%
   summarise(crop_count=length(unique(zaocode[!is.na(zaocode)])),
-            legume=ifelse(any(zaocode %in% legumes), 1, 0))
+            fruit=ifelse(any(zaocode %in% fruit), 1, 0),
+            cashCropsPerm=ifelse(any(zaocode %in% cashCropsPerm), 1, 0),
+            CTR=ifelse(any(zaocode %in% CTR), 1, 0),
+            cashCropNPerm=ifelse(any(zaocode %in% cashCropNPerm), 1, 0),
+            vegetables=ifelse(any(zaocode %in% vegetables), 1, 0),
+            legume=ifelse(any(zaocode %in% legumes), 1, 0),
+            maize=ifelse(any(zaocode %in% 11), 1, 0), # maize has crop code 11
+            wheat=ifelse(any(zaocode %in% 16), 1, 0)) # wheat has crop code 16
 
 oput <- left_join(oput, oput_x); rm(oput_x)
+
+# for productivity of maize farmers we are only interested
+# in the maize farmers, exclude everyone else, and farmers
+# who responded they produced zero maize, or did not respond (NA)
 
 oput_maize <- oput[ oput$zaocode %in% 11 & !is.na(oput$qty) & !oput$qty %in% 0, ]
 oput_maize$maize_prc <- oput_maize$valu/oput_maize$qty
 oput_maize <- dplyr::select(oput_maize, -zaocode, -valu)
 
-rm(list=c("oput", "legumes"))
+rm(list=c("oput", "legumes", "cashCropNPerm", "cashCropsPerm",
+          "CTR", "fruit", "vegetables"))
 
 #######################################
 ############# CHEMICAL ################
@@ -276,6 +300,59 @@ tc$trans <- ifelse(tc$trans %in% 1, 1, 0)
 #######################################
 ########### SOCIO/ECONOMIC ############
 #######################################
+
+# HH12 <- read_dta(file.path(dataPath, "TZA\\2010\\Data\\TZNPS2HH1DTA\\HH_SEC_B.dta")) %>%
+HH12 <- read_dta(file.path(dataPath, "HH_SEC_B.dta")) %>%
+  select(y3_hhid, indidy3, status=hh_b05, sex=hh_b02,
+            yob=hh_b03_1, age=hh_b04, years=hh_b25)
+
+HH12$years <- as.numeric(HH12$years)
+HH12$years <- ifelse(HH12$years %in% 99, HH12$age, HH12$years)
+HH12$status <- as_factor(HH12$status)
+HH12$sex <- toupper(as_factor(HH12$sex))
+HH12$yob <- as.integer(HH12$yob)
+
+# make a new variable cage (cut age) which splits
+# individuals according to their age group with
+# breaks at 15, 55 and the max age
+
+HH12$cage <- cut(HH12$age, breaks = c(0, 15, 55, max(HH12$age, na.rm=TRUE)),
+                    labels=1:3, include.lowest = TRUE, right = TRUE)
+
+# -------------------------------------
+# education of household members and sum
+# of education of all household members
+# between the ages of 15 and 55
+
+# WDswitch
+# ed <- read_dta(file.path(dataPath, "TZA\\2010\\Data\\TZNPS2HH1DTA\\HH_SEC_C.dta")) %>%
+ed <- read_dta(file.path(dataPath, "HH_SEC_C.dta")) %>%
+  select(y3_hhid, indidy3, ed_any=hh_c03, start=hh_c04, end=hh_c08)
+
+ed$ed_any <- as_factor(ed$ed_any) # ever went to school
+ed$end <- as.integer(as.character(ed$end))
+ed$end <- ifelse(ed$end %in% 9999, NA, ed$end)
+
+# join with HH10 dataframe
+HH12 <- left_join(HH12, ed)
+HH12$education <- HH12$end - (HH12$yob + HH12$start)
+HH12$education <- ifelse(HH12$ed_any %in% "NO", 0, HH12$education)
+HH12 <- select(HH12, -start, -end, -yob)
+
+# remove negative years of education (56 obs)
+HH12$education <- ifelse(HH12$education < 0, NA, HH12$education)
+
+# summarise the data: get sum of education
+# of household members 15-55 and number of
+# household members 15:55
+HH12_x <- group_by(HH12, y3_hhid) %>%
+  summarise(education1555=sum(education[cage %in% 2], na.rm=T),
+               N1555=sum(cage %in% 2))
+HH12 <- left_join(HH12, HH12_x); rm(HH12_x)
+
+# filter on household head
+HH12 <- filter(HH12, status %in% "HEAD") %>%
+  select(-indidy3, -status, -cage, -ed_any)
 
 # WDswitch
 se <- read_dta(file.path(dataPath, "TZA\\2012\\Data\\HH_SEC_B.dta")) %>%

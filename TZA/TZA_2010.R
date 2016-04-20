@@ -3,11 +3,11 @@
 #######################################
 
 # WDswitch
-dataPath <- "D:\\Data\\IPOP\\SurveyData\\"
-extraDataPath <- "D:\\Dropbox\\Michiel_research\\2285000066 Africa Maize Yield Gap\\Analysis\\TZA\\Data"
-# dataPath <- "C:/Users/Tomas/Documents/LEI/data/TZA"
-wdPath <- "D:\\Dropbox\\Michiel_research\\2285000066 Africa Maize Yield Gap"
-setwd(wdPath)
+#dataPath <- "D:\\Data\\IPOP\\SurveyData\\"
+#extraDataPath <- "D:\\Dropbox\\Michiel_research\\2285000066 Africa Maize Yield Gap\\Analysis\\TZA\\Data"
+dataPath <- "C:/Users/Tomas/Documents/LEI/data/TZA"
+#wdPath <- "D:\\Dropbox\\Michiel_research\\2285000066 Africa Maize Yield Gap"
+# setwd(wdPath)
 
 
 
@@ -24,8 +24,8 @@ options(scipen=999)
 #######################################
 
 # WDswitch
-oput <- read_dta(file.path(dataPath, "TZA\\2010\\Data\\TZNPS2AGRDTA/AG_SEC4A.dta")) %>%
-# oput <- read_dta(file.path(dataPath, "TZNPS2AGRDTA/AG_SEC4A.dta")) %>%
+# oput <- read_dta(file.path(dataPath, "TZA\\2010\\Data\\TZNPS2AGRDTA/AG_SEC4A.dta")) %>%
+oput <- read_dta(file.path(dataPath, "TZNPS2AGRDTA/AG_SEC4A.dta")) %>%
   dplyr::select(y2_hhid, plotnum, zaocode, inter_crop=ag4a_04,
          harv_area=ag4a_08, qty=ag4a_15, valu=ag4a_16, hybrd=ag4a_23)
 
@@ -33,27 +33,51 @@ oput$inter_crop <- ifelse(oput$inter_crop %in% 1, 1, 0)
 oput$hybrd <- ifelse(oput$hybrd %in% 2, 1, 0)
 oput$zaocode <- as.integer(oput$zaocode)
 
+# -------------------------------------
+# create dummy variables for crop groups
+# (fruit, cash crops (permanent),
+# Cereals/Tubers/Roots, cash crops (not permanent),
+# vegetables, legumes)
+# -------------------------------------
+
+fruit <- c(70:74, 76:85, 97:99, 67, 38, 39)
+cashCropsPerm <- c(53:61, 63:66, 18, 34, 21, 75, 44:46) # permanent cash crops
+CTR <- c(11:17, 22:27) # Cereals, Tubers, Roots
+cashCropNPerm <- c(50, 51, 53, 62, 19) # non permanent cash crops
+vegetables <- c(86:96, 100, 101)
 legumes <- c(31, 32, 33, 35, 36, 37, 41, 42, 43, 47, 48)
 
 oput_x <- group_by(oput, y2_hhid, plotnum) %>%
   summarise(crop_count=length(unique(zaocode[!is.na(zaocode)])),
-            legume=ifelse(any(zaocode %in% legumes), 1, 0))
+            fruit=ifelse(any(zaocode %in% fruit), 1, 0),
+            cashCropsPerm=ifelse(any(zaocode %in% cashCropsPerm), 1, 0),
+            CTR=ifelse(any(zaocode %in% CTR), 1, 0),
+            cashCropNPerm=ifelse(any(zaocode %in% cashCropNPerm), 1, 0),
+            vegetables=ifelse(any(zaocode %in% vegetables), 1, 0),
+            legume=ifelse(any(zaocode %in% legumes), 1, 0),
+            maize=ifelse(any(zaocode %in% 11), 1, 0), # maize has crop code 11
+            wheat=ifelse(any(zaocode %in% 16), 1, 0)) # wheat has crop code 16
 
 oput <- left_join(oput, oput_x); rm(oput_x)
+
+# for productivity of maize farmers we are only interested
+# in the maize farmers, exclude everyone else, and farmers
+# who responded they produced zero maize, or did not respond (NA)
 
 oput_maize <- oput[ oput$zaocode %in% 11 & ! is.na(oput$qty) & !oput$qty %in% 0, ]
 oput_maize$maize_prc <- oput_maize$valu/oput_maize$qty
 oput_maize <- dplyr::select(oput_maize, -zaocode, -valu)
 
-rm(list=c("oput", "legumes"))
+rm(list=c("oput", "legumes", "cashCropNPerm", "cashCropsPerm",
+          "CTR", "fruit", "vegetables"))
 
 #######################################
 ############# CHEMICAL ################
 #######################################
 
 # WDswitch
-plot <- read_dta(file.path(dataPath, "TZA\\2010\\Data\\TZNPS2AGRDTA/AG_SEC3A.dta")) %>%
-# plot <- read_dta(file.path(dataPath, "\\TZNPS2AGRDTA/AG_SEC3A.dta")) %>%
+#plot <- read_dta(file.path(dataPath, "TZA\\2010\\Data\\TZNPS2AGRDTA/AG_SEC3A.dta")) %>%
+plot <- read_dta(file.path(dataPath, "\\TZNPS2AGRDTA/AG_SEC3A.dta")) %>%
   dplyr::select(y2_hhid, plotnum, maize=zaocode, soil=ag3a_09, slope_farmer=ag3a_16, irrig=ag3a_17, title=ag3a_27,
                 manure=ag3a_39, pest=ag3a_58, pest_q=ag3a_60_1, pest_q_unit=ag3a_60_2, fallow_year=ag3a_21, fallow=ag3a_22)
 
@@ -79,13 +103,13 @@ plot$fallow <- ifelse(is.na(plot$fallow_year), NA, plot$fallow)
 plot <- dplyr::select(plot, -fallow_year, - pest_q_unit)
 
 # WDswitch
-fert1 <- read_dta(file.path(dataPath, "TZA\\2010\\Data\\TZNPS2AGRDTA/AG_SEC3A.dta")) %>%
-#fert1 <- read_dta(file.path(dataPath, "TZNPS2AGRDTA/AG_SEC3A.dta")) %>%
+# fert1 <- read_dta(file.path(dataPath, "TZA\\2010\\Data\\TZNPS2AGRDTA/AG_SEC3A.dta")) %>%
+fert1 <- read_dta(file.path(dataPath, "TZNPS2AGRDTA/AG_SEC3A.dta")) %>%
   dplyr::select(y2_hhid, plotnum, typ=ag3a_46, qty=ag3a_47, vouch=ag3a_48, valu=ag3a_49)
 
 # WDswitch
-fert2 <- read_dta(file.path(dataPath, "TZA\\2010\\Data\\TZNPS2AGRDTA/AG_SEC3A.dta")) %>%
-#fert2 <- read_dta(file.path(dataPath, "TZNPS2AGRDTA/AG_SEC3A.dta")) %>%
+# fert2 <- read_dta(file.path(dataPath, "TZA\\2010\\Data\\TZNPS2AGRDTA/AG_SEC3A.dta")) %>%
+fert2 <- read_dta(file.path(dataPath, "TZNPS2AGRDTA/AG_SEC3A.dta")) %>%
   dplyr::select(y2_hhid, plotnum, typ=ag3a_53, qty=ag3a_54, vouch=ag3a_55, valu=ag3a_56)
 
 fert1$typ <- as_factor(fert1$typ)
@@ -104,7 +128,7 @@ levels(fert1$typ) <- levels(fert2$typ) <-
 # Data on NPK composition from Sheahan et al (2014), Food Policy
 # -------------------------------------
 
-conv <- read.csv(paste(extraDataPath, "Fert_comp.csv", sep="/")) %>%
+conv <- read.csv(paste(dataPath, "Fert_comp.csv", sep="/")) %>%
   transmute(typ=Fert_type2, n=N_share/100, p=P_share/100) %>%
   filter(typ %in% levels(fert1$typ))
 
@@ -163,8 +187,8 @@ rm(list=c("fert1", "fert2", "fert", "fertsub", "fertnosub", "fertmix", "conv"))
 #######################################
 
 # WDswitch
-lab <- read_dta(file.path(dataPath, "TZA\\2010\\Data\\TZNPS2AGRDTA/AG_SEC3A.dta")) %>%
-# lab <- read_dta(file.path(dataPath, "\\TZNPS2AGRDTA/AG_SEC3A.dta")) %>%
+# lab <- read_dta(file.path(dataPath, "TZA\\2010\\Data\\TZNPS2AGRDTA/AG_SEC3A.dta")) %>%
+lab <- read_dta(file.path(dataPath, "\\TZNPS2AGRDTA/AG_SEC3A.dta")) %>%
   dplyr::select( y2_hhid, plotnum, ag3a_70_id1:ag3a_72_9 )
 
 # remove houshold labour IDs and question ag3a_71 which we don't need
@@ -192,6 +216,7 @@ lab$lab <- ifelse(lab$lab %in% 0, NA, lab$lab)
 ############### GEO ###################
 #######################################
 
+loc <- read_dta(file.path(dataPath, "TZA\\2010\\Data\\TZNPS2HH1DTA/HH_SEC_A.dta")) %>%
 loc <- read_dta(file.path(dataPath, "TZA\\2010\\Data\\TZNPS2HH1DTA/HH_SEC_A.dta")) %>%
   dplyr::select(ea_id2010 = ea, y2_hhid, rural=y2_rural, region_code_lsms=region, district_code_lsms=district) %>%
   mutate(rural = ifelse(rural == 1, 1, 0))
@@ -227,24 +252,24 @@ loc$zone <- factor(loc$zone)
 # is reffered to as dist01. We use this file. In the BID, the names are not correct. dist_hh = dist01 and dist01 =dist02. We rename.
 
 # WDswitch
-geo <- readRDS(file.path(wdPath, "Analysis\\TZA\\Data\\TZA_geo_2010.rds")) %>% 
-# geo <- read.csv(file.path(dataPath, "TZA_geo_total_2010.csv"), stringsAsFactors=F) %>% 
-  dplyr::select(y2_hhid, lon, lat, plotnum, SPEI, RootDepth, region_name=NAME_1, district_name=NAME_2,
-                AEZ=land03, ph=ph_sd1_sd3, ph2=ph_sd1_sd5,
-                SOC=SOC_sd1_sd3, SOC2=SOC_sd1_sd5, rain_CRU=gsRainfall, 
-                dist_hh=dist01,  dist_road=dist02, dist_popcenter=dist03, dist_market=dist04, dist_borderpost=dist05, dist_regcap=dist06, 
-                hh_elevation=soil01, hh_slope=soil02, hh_twi=soil03, 
-                rain_year=crops07, rain_wq=crops08,
-                YA, YW, YP) %>%
-  unique()
+# geo <- readRDS(file.path(wdPath, "Analysis\\TZA\\Data\\TZA_geo_2010.rds")) %>% 
+# geo <- read.csv(file.path(dataPath, "TZA_geo_2010.rds"), stringsAsFactors=F) %>% 
+#   dplyr::select(hhid, lon, lat, plotnum, SPEI, RootDepth, region_name=NAME_1, district_name=NAME_2,
+#                 AEZ=land03, ph=ph_sd1_sd3, ph2=ph_sd1_sd5,
+#                 SOC=SOC_sd1_sd3, SOC2=SOC_sd1_sd5, rain_CRU=gsRainfall, 
+#                 dist_hh=dist01,  dist_road=dist02, dist_popcenter=dist03, dist_market=dist04, dist_borderpost=dist05, dist_regcap=dist06, 
+#                 hh_elevation=soil01, hh_slope=soil02, hh_twi=soil03, 
+#                 rain_year=crops07, rain_wq=crops08,
+#                 YA, YW, YP) %>%
+#   unique()
 
 #######################################
 ############### AREAs #################
 #######################################
 
 # WDswitch
-areas <- read_dta(file.path(dataPath, "Plot_size/areas_tza_y2_imputed.dta")) %>%
-# areas <- read_dta(file.path(dataPath, "areas_tza_y2_imputed.dta")) %>%  
+# areas <- read_dta(file.path(dataPath, "Plot_size/areas_tza_y2_imputed.dta")) %>%
+areas <- read_dta(file.path(dataPath, "areas_tza_y2_imputed.dta")) %>%  
   dplyr::select(y2_hhid=case_id, plotnum,
                 area_farmer=area_sr, area_gps=area_gps_mi_50)
 
@@ -261,8 +286,8 @@ areaTotal$area_tot <- ifelse(areaTotal$area_tot %in% 0, NA, areaTotal$area_tot)
 #######################################
 
 # WDswitch
-implmt <- read_dta(file.path(dataPath, "TZA\\2010\\Data\\TZNPS2AGRDTA/AG_SEC11.dta")) %>%
-# implmt <- read_dta(file.path(dataPath, "TZNPS2AGRDTA/AG_SEC11.dta")) %>%
+# implmt <- read_dta(file.path(dataPath, "TZA\\2010\\Data\\TZNPS2AGRDTA/AG_SEC11.dta")) %>%
+implmt <- read_dta(file.path(dataPath, "TZNPS2AGRDTA/AG_SEC11.dta")) %>%
   dplyr::select(y2_hhid, itemcode, qty=ag11_01, valu=ag11_02) %>%
   filter(!qty %in% 0, !is.na(qty), !valu %in% 0, !is.na(valu)) %>%
   transmute(y2_hhid, valu=qty*valu) %>%
@@ -274,8 +299,8 @@ implmt <- read_dta(file.path(dataPath, "TZA\\2010\\Data\\TZNPS2AGRDTA/AG_SEC11.d
 #######################################
 
 # WDswitch
-tc <- read_dta(file.path(dataPath, "TZA\\2010\\Data\\TZNPS2AGRDTA/AG_SEC5a.dta")) %>%
-# tc <- read_dta(file.path(dataPath, "TZNPS2AGRDTA/AG_SEC5a.dta")) %>%
+#tc <- read_dta(file.path(dataPath, "TZA\\2010\\Data\\TZNPS2AGRDTA/AG_SEC5a.dta")) %>%
+tc <- read_dta(file.path(dataPath, "TZNPS2AGRDTA/AG_SEC5a.dta")) %>%
   dplyr::filter(zaocode %in% 11) %>%
   dplyr::select(y2_hhid, trans=ag5a_15, trans_dist=ag5a_16, trans_cost=ag5a_19)
 
@@ -286,41 +311,62 @@ tc$trans <- ifelse(tc$trans %in% 1, 1, 0)
 #######################################
 
 # WDswitch
-se <- read_dta(file.path(dataPath, "TZA\\2010\\Data\\TZNPS2HH1DTA\\HH_SEC_B.dta")) %>%
-# se <- read_dta(file.path(dataPath, "HH_SEC_B.dta")) %>%
-  filter(hh_b05 %in% 1) %>% # 1 for head of household
-  dplyr::select(y2_hhid, indidy2, sex=hh_b02, yob=hh_b03_1, age=hh_b04)
+# HH10 <- read_dta(file.path(dataPath, "TZA\\2010\\Data\\TZNPS2HH1DTA\\HH_SEC_B.dta")) %>%
+HH10 <- read_dta(file.path(dataPath, "HH_SEC_B.dta")) %>%
+  select(y2_hhid, indidy2, status=hh_b05, sex=hh_b02,
+            yob=hh_b03_1, age=hh_b04, years=hh_b25)
 
-se$sex <- ifelse(se$sex %in% 2, 1, 0)
-se$yob <- as.integer(as.character(se$yob))
+HH10$years <- as.numeric(HH10$years)
+HH10$years <- ifelse(HH10$years %in% 99, HH10$age, HH10$years)
+HH10$status <- as_factor(HH10$status)
+HH10$sex <- toupper(as_factor(HH10$sex))
+HH10$yob <- as.integer(HH10$yob)
 
-# education
+# make a new variable cage (cut age = cage) which splits
+# individuals according to their age group with
+# breaks at 15, 55 and the max age
+
+HH10$cage <- cut(HH10$age, breaks = c(0, 15, 55, max(HH10$age, na.rm=TRUE)),
+                    labels=1:3, include.lowest = TRUE, right = TRUE)
+
+# education of household members and sum
+# of education of all household members
+# between the ages of 15 and 55
 # WDswitch
-ed <- read_dta(file.path(dataPath, "TZA\\2010\\Data\\TZNPS2HH1DTA\\HH_SEC_C.dta")) %>%
-# ed <- read_dta(file.path(dataPath, "HH_SEC_C.dta")) %>%
-  dplyr::select(y2_hhid, indidy2, start=hh_c04, end=hh_c08)
+# ed <- read_dta(file.path(dataPath, "TZA\\2010\\Data\\TZNPS2HH1DTA\\HH_SEC_C.dta")) %>%
+ed <- read_dta(file.path(dataPath, "HH_SEC_C.dta")) %>%
+  select(y2_hhid, indidy2, ed_any=hh_c03, start=hh_c04, end=hh_c08)
 
+ed$ed_any <- as_factor(ed$ed_any) # ever went to school
 ed$end <- as.integer(as.character(ed$end))
 ed$end <- ifelse(ed$end %in% 9999, NA, ed$end)
 
-# join se and ed to find years in school
-se <- left_join(se, ed) %>% dplyr::select(-indidy2)
-rm("ed")
+# join with HH10 dataframe
+HH10 <- left_join(HH10, ed)
+HH10$education <- HH10$end - (HH10$yob + HH10$start)
+HH10$education <- ifelse(HH10$ed_any %in% "No", 0, HH10$education)
+HH10 <- select(HH10, -start, -end, -yob)
 
-se$educ <- se$end - (se$yob + se$start)
-se <- dplyr::select(se, -start, -end, -yob)
+# remove negative years of education (56 obs)
+HH10$education <- ifelse(HH10$education < 0, NA, HH10$education)
 
-# if anyone received negative years of schooling, set to NA
-se$educ <- ifelse(se$educ < 0, NA, se$educ)
+# summarise the data: get sum of education
+# of household members 15-55 and number of
+# household members 15:55
+HH10_x <- group_by(HH10, y2_hhid) %>%
+  summarise(education1555=sum(education[cage %in% 2], na.rm=T),
+               N1555=sum(cage %in% 2))
+HH10 <- left_join(HH10, HH10_x); rm(HH10_x)
 
-# still some people have received a lot of schooling!!!!
-# also NA values!
+# filter on household head
+HH10 <- filter(HH10, status %in% "HEAD") %>%
+  select(-indidy2, -status, -cage, -ed_any)
 
 # plot ownership
 
 # WDswitch
-own <- read_dta(file.path(dataPath, "TZA\\2010\\Data\\TZNPS2AGRDTA/AG_SEC3A.dta")) %>%
-# own <- read_dta(file.path(dataPath, "TZNPS2AGRDTA/AG_SEC3A.dta")) %>%
+# own <- read_dta(file.path(dataPath, "TZA\\2010\\Data\\TZNPS2AGRDTA/AG_SEC3A.dta")) %>%
+own <- read_dta(file.path(dataPath, "TZNPS2AGRDTA/AG_SEC3A.dta")) %>%
   dplyr::select(y2_hhid, plotnum, own=ag3a_24)
 
 own$own <- ifelse(own$own %in% 1 | own$own %in% 5, 1, 0)
