@@ -6,7 +6,7 @@ dataPath <- "C:/Users/Tomas/Documents/LEI/data/TZA"
 
 library(haven)
 library(stringr)
-library(plyr)
+library(reshape2)
 library(dplyr)
 
 options(scipen=999)
@@ -203,3 +203,123 @@ implmt <- read_dta(file.path(dataPath, "TZA2008/TZNPS1AGDTA_E/SEC_11_ALL.dta")) 
   transmute(hhid, valu=qty*valu) %>%
   group_by(hhid) %>%
   summarise(value=sum(valu))
+
+# -------------------------------------
+# Livestock assets
+# -------------------------------------
+
+# classifications from wave 3 classification table
+LR <- c("BULLS", "COWS", "STEERS", "HEIFERS", "MALE-CALVES", "FEMALE-CALVES")
+SR <- c("GOATS", "SHEEP")
+PIGS <- c("PIGS")
+POULTRY <- c("CHICKENS", "TURKEYS")
+OTHER <- c("RABBITS", "DONKEYS", "HORSES", "DOGS", "OTHER")
+
+# read in the data
+lvstock <- read_dta(file.path(dataPath, "TZA2008/TZNPS1AGDTA_E/SEC_10A.dta")) %>%
+  select(hhid, animal, owned = s10aq2, indigQty = s10aq4_1,
+         improvBeefQty = s10aq4_2, improvDairyQty = s10aq4_3 )
+lvstock$owned <- ifelse(lvstock$owned %in% 1, 1, 0)
+lvstock$animal <- as_factor(lvstock$animal)
+
+# sometimes 9999 has been used instead of NA
+lvstock$indigQty <- ifelse(lvstock$indigQty == 9999, NA, lvstock$indigQty)
+lvstock$improvBeefQty <- ifelse(lvstock$improvBeefQty == 9999, NA, lvstock$improvBeefQty)
+lvstock$improvDairyQty <- ifelse(lvstock$improvDairyQty == 9999, NA, lvstock$improvDairyQty)
+lvstock$animal <- gsub(" ", "-", lvstock$animal)
+lvstock <- filter(lvstock, !is.na(animal) )
+
+# count the number of animals of each class a household owns
+lvstock_x <- select(lvstock, hhid, animal, indigQty, improvBeefQty, improvDairyQty) %>%
+  melt(id = c("hhid", "animal")) %>%
+  group_by(hhid, animal) %>%
+  mutate(class = ifelse(animal %in% LR, "LR",
+                        ifelse(animal %in% SR, "SR", 
+                               ifelse(animal %in% PIGS, "PIGS_",
+                                      ifelse(animal %in% POULTRY, "POULTRY",
+                                             ifelse(animal %in% OTHER, "OTHER_")))))) %>%
+  group_by(hhid, class) %>%
+  summarise(n=sum(value, na.rm=TRUE)) %>%
+  dcast(hhid ~ class)
+
+# count the number of each animal a household owns
+lvstock_y <- select(lvstock, hhid, animal, indigQty, improvBeefQty, improvDairyQty) %>%
+  melt(id = c("hhid", "animal")) %>%
+  group_by(hhid, animal) %>%
+  summarise(n=sum(value, na.rm=TRUE)) %>%
+  dcast(hhid ~ animal)
+
+# join together
+lvstock <- left_join(lvstock_x, lvstock_y)
+
+rm("LR", "SR", "lvstock_x", "lvstock_y", "OTHER", "PIGS", "POULTRY")
+
+# -------------------------------------
+#
+# -------------------------------------
+
+# also add land measurements
+
+#######################################
+########## TRANSPORT COSTS ############
+#######################################
+
+# just for maize
+
+tc <- read_dta(file.path(dataPath, "TZA2008/TZNPS1AGDTA_E/SEC_5a.dta")) %>%
+  dplyr::filter(zaocode %in% 11) %>%
+  dplyr::select(hhid, trans=s5aq9, trans_dist=s5aq10, trans_cost=s5aq13)
+
+tc$trans <- ifelse(tc$trans %in% 1, 1, 0)
+
+#######################################
+########### SOCIO/ECONOMIC ############
+#######################################
+
+
+HH08 <- read_dta(file.path(dataPath, "TZA2008/TZNPS1HHDTA_E/SEC_B_C_D_E1_F_G1_U.dta")) %>%
+  select(hhid, sbmemno, status=sbq5, sex=sbq2,
+         yob=sbq3yr, age=sbq4, years=sbq24)
+
+HH08$years <- as.numeric(HH08$years)
+HH08$years <- ifelse(HH08$years %in% 99, HH08$age, HH08$years)
+HH08$status <- as_factor(HH08$status)
+HH08$sex <- toupper(as_factor(HH08$sex))
+HH08$yob <- as.integer(HH08$yob)
+
+# make a new variable cage (cut age = cage) which splits
+# individuals according to their age group with
+# breaks at 15, 55 and the max age
+
+HH08$cage <- cut(HH08$age, breaks = c(0, 15, 55, max(HH08$age, na.rm=TRUE)),
+                 labels=1:3, include.lowest = TRUE, right = TRUE)
+
+# education of household members and sum
+# of education of all household members
+# between the ages of 15 and 55
+
+ed <- read_dta(file.path(dataPath, "TZA2008/TZNPS1HHDTA_E/SEC_B_C_D_E1_F_G1_U.dta")) %>%
+  select(hhid, sbmemno, ed_any=sbq2, start=sbq3yr)
+
+ed$ed_any <- as_factor(ed$ed_any) # ever went to school
+
+# join with HH10 dataframe
+HH08 <- left_join(HH08, ed)
+HH08 <- select(HH08, -start, -yob)
+
+# summarise the data: number of
+# household members 15:55
+HH08_x <- group_by(HH08, hhid) %>%
+  summarise(N1555=sum(cage %in% 2))
+HH08 <- left_join(HH08, HH08_x); rm(HH08_x)
+
+# filter on household head
+HH08 <- filter(HH08, status %in% "HEAD") %>%
+  select(-sbmemno, -status, -cage, -ed_any)
+
+# plot ownership
+
+own <- read_dta(file.path(dataPath, "TZA2008/TZNPS1AGDTA_E/SEC_3A.dta")) %>%
+  dplyr::select(hhid, plotnum, own=s3aq22)
+
+own$own <- ifelse(own$own %in% 1 | own$own %in% 5, 1, 0)

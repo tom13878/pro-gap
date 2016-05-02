@@ -2,22 +2,14 @@
 ########## TANZANIA 2010-11 ###########
 #######################################
 
-# WDswitch
-#dataPath <- "D:\\Data\\IPOP\\SurveyData\\"
-#extraDataPath <- "D:\\Dropbox\\Michiel_research\\2285000066 Africa Maize Yield Gap\\Analysis\\TZA\\Data"
 dataPath <- "C:/Users/Tomas/Documents/LEI/data/TZA"
-#wdPath <- "D:\\Dropbox\\Michiel_research\\2285000066 Africa Maize Yield Gap"
-# setwd(wdPath)
-
-
 
 library(haven)
 library(stringr)
-library(plyr)
+library(reshape2)
 library(dplyr)
 
 options(scipen=999)
-
 
 #######################################
 ############### OUTPUT ################
@@ -293,6 +285,52 @@ implmt <- read_dta(file.path(dataPath, "TZNPS2AGRDTA/AG_SEC11.dta")) %>%
   transmute(y2_hhid, valu=qty*valu) %>%
   group_by(y2_hhid) %>%
   summarise(value=sum(valu))
+
+# -------------------------------------
+# Livestock assets
+# -------------------------------------
+
+# classifications from wave 3 classification table
+LR <- c("BULLS", "COWS", "STEERS", "HEIFERS", "MALE-CALVES", "FEMALE-CALVES")
+SR <- c("GOATS", "SHEEP")
+PIGS <- c("PIGS")
+POULTRY <- c("CHICKENS", "DUCKS", "TURKEYS")
+OTHER <- c("RABBITS", "HORSES", "DOG", "OTHER")
+
+# read in the data
+lvstock <- read_dta(file.path(dataPath, "TZNPS2AGRDTA/AG_SEC10A.dta")) %>%
+  select(y2_hhid, animal = lvstkcode, owned = ag10a_02, indigQty = ag10a_05_1,
+         improvBeefQty = ag10a_05_2, improvDairyQty = ag10a_05_3 )
+lvstock$owned <- ifelse(lvstock$owned %in% 1, 1, 0)
+lvstock$animal <- as_factor(lvstock$animal)
+
+# remove white space
+lvstock$animal <- gsub(" ", "-", lvstock$animal)
+
+# count the number of animals of each class a household owns
+lvstock_x <- select(lvstock, y2_hhid, animal, indigQty, improvBeefQty, improvDairyQty) %>%
+  melt(id = c("y2_hhid", "animal")) %>%
+  group_by(y2_hhid, animal) %>%
+  mutate(class = ifelse(animal %in% LR, "LR",
+                        ifelse(animal %in% SR, "SR", 
+                               ifelse(animal %in% PIGS, "PIGS_",
+                                      ifelse(animal %in% POULTRY, "POULTRY",
+                                             ifelse(animal %in% OTHER, "OTHER_")))))) %>%
+  group_by(y2_hhid, class) %>%
+  summarise(n=sum(value, na.rm=TRUE)) %>%
+  dcast(y2_hhid ~ class)
+
+# count the number of each animal a household owns
+lvstock_y <- select(lvstock, y2_hhid, animal, indigQty, improvBeefQty, improvDairyQty) %>%
+  melt(id = c("y2_hhid", "animal")) %>%
+  group_by(y2_hhid, animal) %>%
+  summarise(n=sum(value, na.rm=TRUE)) %>%
+  dcast(y2_hhid ~ animal)
+
+# join together
+lvstock <- left_join(lvstock_x, lvstock_y)
+
+rm("LR", "SR", "lvstock_x", "lvstock_y", "OTHER", "PIGS", "POULTRY")
 
 #######################################
 ########## TRANSPORT COSTS ############
