@@ -3,7 +3,7 @@
 #######################################
 
 # Tom
-dataPath <- "C:/Users/Tomas/Documents/LEI/data/TZA/TZA2010"
+dataPath <- "C:/Users/Tomas/Documents/LEI/data/TZA/TZA2010/Data"
 
 # Michiel
 # dataPath <- ""
@@ -33,7 +33,7 @@ location$rural <- as.integer(location$rural)
 
 # match up with the names from the survey (prepared in a seperate file)
 
-ZONEREGDIS <- read.csv(file.path(paste0(dataPath,"/.."), "ZONEREGDIS0810.csv"))
+ZONEREGDIS <- read.csv(file.path(paste0(dataPath,"/../.."), "ZONEREGDIS.csv"))
 
 # join with household identifications
 
@@ -109,14 +109,6 @@ HH10 <- left_join(HH10, death)
 HH10 <- left_join(HH10, credit) 
 
 rm(ed, credit, death)
-
-# # -------------------------------------
-# # plot ownership
-# # -------------------------------------
-# 
-# own <- read_dta(file.path(dataPath, "TZNPS2AGRDTA/AG_SEC3A.dta")) %>%
-#   dplyr::select(y2_hhid, plotnum, own=ag3a_24)
-# own$own <- ifelse(own$own %in% 1 | own$own %in% 5, 1, 0)
 
 #######################################
 ############### OUTPUT ################
@@ -218,7 +210,7 @@ levels(fert1$typ) <- levels(fert2$typ) <-
 # Data on NPK composition from Sheahan et al (2014), Food Policy
 # -------------------------------------
 
-conv <- read.csv(file.path(paste0(dataPath,"/../.."), "Fert_comp.csv")) %>%
+conv <- read.csv(file.path(paste0(dataPath,"/../../.."), "Fert_comp.csv")) %>%
   transmute(typ=Fert_type2, n=N_share/100, p=P_share/100) %>%
   filter(typ %in% levels(fert1$typ))
 
@@ -307,7 +299,8 @@ rm(bad)
 
 geo10 <- read_dta(file.path(dataPath, "TZNPS2GEODTA/HH.Geovariables_Y2.dta")) %>%
   select(y2_hhid, dist2town=dist02, dist2market=dist03, dist2HQ=dist05,
-         avgTemp=clim01, avgpPrecip=clim03, nutrient=soil05)
+         avgTemp=clim01, avgpPrecip=clim03)
+
 
 #######################################
 ############### AREAs #################
@@ -319,6 +312,15 @@ areas <- read_dta(file.path(dataPath, "areas_tza_y2_imputed.dta")) %>%
 
 areas$area_gps <- ifelse(areas$area_gps %in% 0, NA, areas$area_gps)
 
+# add an ownership variable if the household owns
+# a plot 
+
+own <- read_dta(file.path(dataPath, "TZNPS2AGRDTA/AG_SEC3A.dta")) %>%
+    select(y2_hhid, plotnum, own=ag3a_24)
+own$own <- ifelse(own$own %in% 1 | own$own %in% 5, 1, 0)
+areas <- left_join(areas, own); rm(own)
+
+# calcualte the households total land holdings
 areaTotal <- group_by(areas, y2_hhid) %>%
   summarise(area_tot = sum(area_gps))
 
@@ -416,8 +418,8 @@ TZA2010 <- left_join(TZA2010, areas); rm(areas)
 
 # amend the death and SACCO variables
 
-TZA2010$SACCO <- ifelse(TZA2010$SACCO == 1, 1, 0)
-TZA2010$death <- ifelse(TZA2010$death == 1, 1, 0)
+TZA2010$SACCO <- ifelse(TZA2010$SACCO %in% 1, 1, 0)
+TZA2010$death <- ifelse(TZA2010$death %in% 1, 1, 0)
 
 # per hectacre
 TZA2010 <- mutate(TZA2010,
@@ -436,7 +438,7 @@ TZA2010 <- mutate(TZA2010,
 # http://data.worldbank.org/indicator/FP.CPI.TOTL.ZG/countries/TZ?display=graph
 # -------------------------------------
 
-inflation <- read.csv(file.path(paste0(dataPath,"/../.."), "inflation.csv"))
+inflation <- read.csv(file.path(paste0(dataPath,"/../../.."), "inflation.csv"))
 rate2011 <- inflation$inflation[inflation$code=="TZ" & inflation$year==2011]
 rate2013 <- inflation$inflation[inflation$code=="TZ" & inflation$year==2013]
 
