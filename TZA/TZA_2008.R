@@ -258,10 +258,9 @@ rm(bad)
 # read in the household geovariables
 
 geo08 <- read_dta(file.path(dataPath, "TZNPS1_consdta/HH.Geovariables_Y1.dta")) %>%
-  select(hhid, dist2town=dist02, dist2market=dist03, dist2HQ=dist05,
-         avgTemp=clim01, avgpPrecip=clim03)
+  select(hhid, lon=lon_modified, lat=lat_modified, dist2town=dist02, dist2market=dist03,
+         dist2HQ=dist05, avgTemp=clim01, avgpPrecip=clim03)
 
-  
 #######################################
 ############### ASSETS ################
 #######################################
@@ -364,12 +363,24 @@ tc <- read_dta(file.path(dataPath, "/TZNPS1AGDTA_E/SEC_5a.dta")) %>%
 tc$trans <- ifelse(tc$trans %in% 1, 1, 0)
 
 #######################################
+############ PANEL KEY ################
+#######################################
+
+# key for joing individuals and households across years
+key <- read_dta(file.path(dataPath, "../../TZA2012/Data/NPSY3.PANEL.KEY.dta")) %>%
+  select(-UPI3) %>% rename(hhid = y1_hhid, hhid2010 = y2_hhid, hhid2012=y3_hhid)
+key$hhid <- zap_empty(key$hhid)
+key$hhid2010 <- zap_empty(key$hhid2010)
+key$hhid2012 <- zap_empty(key$hhid2012)
+
+#######################################
 ########### CROSS SECTION #############
 #######################################
 
 # joins at the household level (hhid)
 
 TZA2008 <- left_join(location, HH08); rm(location); rm(HH08)
+TZA2008 <- left_join(TZA2008, key); rm(key)
 TZA2008 <- left_join(TZA2008, geo08); rm(geo08)
 TZA2008 <- left_join(TZA2008, implmt); rm(implmt)
 TZA2008 <- left_join(TZA2008, areaTotal); rm(areaTotal)
@@ -428,7 +439,8 @@ TZA2008 <- select(TZA2008, -qty, -value)
 
 TZA2008<- mutate(TZA2008, surveyyear=2008) %>% rename(hhid2008=hhid)
 
-rm(list=ls()[!ls() %in% "TZA2008"])
+rm(list=ls()[!ls() %in% c("TZA2008", "dataPath")])
 
+# saveRDS(TZA2008, file.path(dataPath, "/../../TZA2008.rds"))
 
 
