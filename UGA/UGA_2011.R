@@ -1,9 +1,9 @@
 #######################################
-########### UGANDA 2009-10 ############
+########### UGANDA 2011-12 ############
 #######################################
 
 # Tom
-dataPath <- "C:/Users/Tomas/Documents/LEI/data/UGA/2009_10/Data"
+dataPath <- "C:/Users/Tomas/Documents/LEI/data/UGA/2011_12/Data"
 
 # LEI server dataPath
 # dataPath <- ""
@@ -19,7 +19,7 @@ options(scipen=999)
 #######################################
 
 location <- read_dta(file.path(dataPath, "GSEC1.dta")) %>%
-  select(HHID, region, rural=urban, h1aq1, h1aq1_05)
+  select(HHID, region, district=h1aq1, rural=urban)
 location$rural <- ifelse(location$rural %in% 0, 1, 0)
 location$region <- as_factor(location$region)
 
@@ -27,19 +27,19 @@ location$region <- as_factor(location$region)
 ########### SOCIO/ECONOMIC ############
 #######################################
 
-HH09 <- read_dta(file.path(dataPath, "GSEC2.dta")) %>%
+HH11 <- read_dta(file.path(dataPath, "GSEC2.dta")) %>%
   select(HHID, PID, status=h2q4, sex=h2q3,
          yob=h2q9c, age=h2q8)
 
-HH09$status <- toupper(as_factor(HH09$status))
+HH11$status <- toupper(as_factor(HH11$status))
 HH10$sex <- as.integer(HH10$sex) # female = 1
-HH09$yob <- as.integer(HH09$yob)
+HH11$yob <- as.integer(HH11$yob)
 
 # make a new variable cage (cut age = cage) which splits
 # individuals according to their age group with
 # breaks at 15, 55 and the max age
 
-HH09$cage <- cut(HH09$age, breaks = c(0, 15, 55, max(HH09$age, na.rm=TRUE)),
+HH11$cage <- cut(HH11$age, breaks = c(0, 15, 55, max(HH11$age, na.rm=TRUE)),
                  labels=c("0-15", "16-55", "56+"), include.lowest = TRUE, right = TRUE)
 
 # education of household members and sum
@@ -50,18 +50,17 @@ ed <- read_dta(file.path(dataPath, "GSEC4.dta")) %>%
   select(HHID, PID, ed_any=h4q5, grade=h4q7)
 
 ed$ed_any <- ifelse(ed$ed_any %in% c(2, 3), 1, 0) # ever went to school
-ed$grade <- as_factor(ed$grade)
 
 # join with HH10 dataframe
-HH09 <- left_join(HH09, ed)
+HH11 <- left_join(HH11, ed)
 
 # summarise the data: get sum of education
 # of household members 15-55 and number of
 # household members 15:55
 
-HH09_x <- group_by(HH09, HHID) %>%
+HH11_x <- group_by(HH11, HHID) %>%
   summarise(N1555=sum(cage %in% "16-55"))
-HH09 <- left_join(HH09, HH09_x); rm(HH09_x)
+HH11 <- left_join(HH11, HH11_x); rm(HH11_x)
 
 # -------------------------------------
 # death in the family
@@ -78,16 +77,16 @@ death$death <- ifelse(death$death, 1, 0)
 # membership to a credit group
 # -------------------------------------
 
-credit <- read_dta(file.path(dataPath, "GSEC13.dta")) %>%
-  select(HHID, h13q01:h13q03) %>% 
-  melt(id = "HHID") %>%
-  group_by(HHID) %>%
-  summarise(credit=any(value %in% 1))
+# credit <- read_dta(file.path(dataPath, "GSEC13A.dta")) %>%
+#   select(HHID, h13q01:h13q03) %>% 
+#   melt(id = "HHID") %>%
+#   group_by(HHID) %>%
+#   summarise(credit=any(value %in% 1))
+# 
+# credit$credit <- ifelse(credit$credit, 1, 0)
 
-credit$credit <- ifelse(credit$credit, 1, 0)
-
-HH09 <- left_join(HH09, death) 
-HH09 <- left_join(HH09, credit) 
+HH11 <- left_join(HH11, death) 
+HH11 <- left_join(HH11, credit) 
 
 rm(ed, credit, death)
 
@@ -95,15 +94,17 @@ rm(ed, credit, death)
 ############### OUTPUT ################
 #######################################
 
-oput <- read_dta(file.path(dataPath, "AGSEC5B.dta")) %>%
-  select(HHID, parcel_id = a5bq1, plot_id = a5bq3, crop_name = a5bq4, crop_code = a5bq5,
-         qty=a5bq6a, qty_unit=a5bq6c, qty_unit2kg = a5bq6d,
-         qty_sold=a5bq7a, qty_sold_unit=a5bq7c, value = a5bq8,
-         tc = a5bq10)
+oput <- read_dta(file.path(dataPath, "AGSEC5A.dta")) %>%
+  select(HHID, parcel_id=parcelID, plot_id=plotID, crop_code=cropID,
+         qty=a5aq6a, qty_unit=a5aq6c, qty_unit2kg = a5aq6d,
+         qty_sold=a5aq7a, qty_sold_unit=a5aq7c, value = a5aq8,
+         tc = a5aq10)
 
+oput$crop_code <- as.integer(oput$crop_code)
 oput$qty <- oput$qty * oput$qty_unit2kg
 oput$qty_sold <- oput$qty_sold * oput$qty_unit2kg
-oput <- select(oput, HHID, parcel_id, plot_id, crop_name, crop_code, qty, qty_sold, value, tc)
+oput <- select(oput, HHID, parcel_id, plot_id, crop_code, qty, qty_sold, value, tc)
+oput$HHID <- as.character(oput$HHID)
 
 # change ids to integer
 oput$parcel_id <- as.integer(oput$parcel_id)
@@ -151,12 +152,12 @@ rm(list=c("legumes", "cashCropNPerm", "cashCropsPerm",
 #######################################
 
 plot <- read_dta(file.path(dataPath, "AGSEC3A.dta")) %>%
-  select(HHID, parcel_id=a3aq1, plot_id=a3aq3, manure=a3aq4, manure_qty = a3aq5, 
-                inorg=a3aq14, typ=a3aq15, inorg_qty=a3aq16, inorg_purch=a3aq17,
-                inorg_purch_qty=a3aq18, inorg_value=a3aq19, pest=a3aq26, pest_unit=a3aq28a,
-                pest_qty=a3aq28b, pest_purch=a3aq29, pest_purch_qty=a3aq30, pest_purch_value=a3aq31,
-                fam_lab_people=a3aq38, fam_lab_days=a3aq39, hir_lab=a3aq41, hir_lab_men_days=a3aq42a,
-                hir_lab_woman_days=a3aq42b, hir_lab_child_days=a3aq42c)
+  select(HHID, parcel_id=parcelID, plot_id=plotID, manure=a3aq4, manure_qty = a3aq5, 
+         inorg=a3aq13, typ=a3aq14, inorg_qty=a3aq15, inorg_purch=a3aq16,
+         inorg_purch_qty=a3aq17, inorg_value=a3aq18, pest=a3aq22, pest_unit=a3aq24a,
+         pest_qty=a3aq24b, pest_purch=a3aq25, pest_purch_qty=a3aq26, pest_purch_value=a3aq27,
+         fam_lab_days=a3aq32, hir_lab_men_days=a3aq35a,
+         hir_lab_woman_days=a3aq35b, hir_lab_child_days=a3aq35c)
 
 plot$manure <- ifelse(plot$manure %in% 1, 1, 0)
 plot$inorg <- ifelse(plot$inorg %in% 1, 1, 0)
@@ -165,42 +166,55 @@ plot$pest <- ifelse(plot$pest %in% 1, 1, 0)
 plot$pest_purch <- ifelse(plot$pest_purch %in% 1, 1, 0)
 plot$typ <- as_factor(plot$typ)
 plot$pest_unit <- as_factor(plot$pest_unit)
-plot$hir_lab <- as_factor(plot$hir_lab)
+plot$hir_lab_men_days <- ifelse(is.na(plot$hir_lab_men_days), 0, plot$hir_lab_men_days)
+plot$hir_lab_woman_days <- ifelse(is.na(plot$hir_lab_woman_days), 0, plot$hir_lab_woman_days)
+plot$hir_lab_child_days <- ifelse(is.na(plot$hir_lab_child_days), 0, plot$hir_lab_child_days)
+
+# there are many variables in the plot section.
+# select those that are close enough to the
+# other countries and make most sense
+plot <- transmute(plot, HHID, parcel_id, plot_id, manure, manure_qty,
+                  inorg, pest, famLab = fam_lab_days,
+                  hirLab = hir_lab_men_days + hir_lab_woman_days + hir_lab_child_days)
 plot$HHID <- as.character(plot$HHID)
 
+# crop level variables
 crop <- read_dta(file.path(dataPath, "AGSEC4A.dta")) %>% 
-  select(HHID, parcel_id=a4aq2, plot_id=a4aq4, crop_name=a4aq5, crop_code=a4aq6,
-         inter_crop=a4aq7, share=a4aq8, area_share=a4aq9, hybrd=a4aq13)
-crop$crop_code <- as.integer(crop$crop_code)
+  select(HHID, parcel_id=parcelID, plot_id=plotID, crop_code=cropID,
+         inter_crop=a4aq8, share=a4aq7, area_share=a4aq9, hybrd=a4aq13)
 crop$HHID <- as.character(crop$HHID)
 
-crop$crop_name <- zap_empty(crop$crop_name)
+crop$crop_code <- as.integer(crop$crop_code)
 crop$inter_crop <- ifelse(crop$inter_crop %in% 1, 1, 0)
 crop$hybrd <- ifelse(crop$hybrd %in% 2, 1, 0)
-crop$HHID <- as.character(crop$HHID)
 
 parcel <- read_dta(file.path(dataPath, "AGSEC2A.dta")) %>% 
-  select(HHID, parcel_id=a2aq2, soil=a2aq18, irrig=a2aq20,
-         slope_farmer=a2aq21)
+  select(HHID, parcel_id=parcelID, soil=a2aq17, irrig=a2aq20,
+         slope_farmer=a2aq19)
+
+parcel$soil <- as_factor(parcel$soil)
+parcel$irrig <- as_factor(parcel$irrig)
+parcel$slope_farmer <- as_factor(parcel$slope_farmer)
 parcel$HHID <- as.character(parcel$HHID)
 
 #######################################
 ############### GEO ###################
 #######################################
 
-geo09 <- read_dta(file.path(dataPath, "UNPS_Geovars_0910.dta")) %>%
+geo11 <- read_dta(file.path(dataPath, "UNPS_Geovars_1112.dta")) %>%
   select(HHID, lon=lon_mod, lat=lat_mod, dist2Rd=dist_road,
          dist2town=dist_popcenter, dist2market=dist_market,
-         dist2HQ=dist_admctr, avgTemp=af_bio_1, avgpPrecip=af_bio_12)
+         dist2HQ=dist_admctr, avgTemp=af_bio_1, avgPrecip=af_bio_12)
 
 #######################################
 ############### AREAs #################
 #######################################
 
 areas <- read_dta(file.path(dataPath, "AGSEC2A.dta")) %>%  
-  select(HHID, parcel_id=a2aq2, area_farmer=a2aq5, own=a2aq25,
-         area_gps=a2aq4, fallow_year=a2aq14, fallow_years=a2aq15)
+  select(HHID, parcel_id=parcelID, area_farmer=a2aq5, own=a2aq23,
+         area_gps=a2aq4, fallow_year=a2aq12, fallow_years=a2aq13a)
 
+areas$HHID <- as.character(areas$HHID)
 areas$own <- as_factor(areas$own)
 areas$area_gps <- ifelse(areas$area_gps %in% 0, NA, areas$area_gps)
 areas$area <- ifelse(is.na(areas$area_gps), areas$area_farmer, areas$area_gps)
@@ -227,23 +241,27 @@ asset <- read_dta(file.path(dataPath, "GSEC14.dta")) %>%
 # -------------------------------------
 
 # classifications from wave 3 classification table
-LR <- c("CALVES","BULLS-AND-OXEN", "HEIFER-AND-COWS", "STEERS", "HEIFERS", "MALE-CALVES", "FEMALE-CALVES")
-SR <- c("MALE-GOATS", "FEMALE-GOATS", "MALE-SHEEP", "FEMALE-SHEEP")
-PIGS <- c("PIGS")
-OTHER <- c("DONKEYS", "MULES-/-HORSES")
+LR <- c("EXOTIC-CALVES","EXOTIC-COWS", "EXOTIC-BULLS", "EXOTIC-HEIFER",
+        "EXOTIC-OXEN", "INDIGENOUS-CALVES", "INDIGENOUS-BULLS",
+        "INDIGENOUS-OXEN", "INDIGENOUS-HEIFER", "INDIGENOUS-COWS")
+# SR <- c("MALE-GOATS", "FEMALE-GOATS", "MALE-SHEEP", "FEMALE-SHEEP")
+# PIGS <- c("PIGS")
+OTHER <- c("INDIGENOUS-DONKEYS", "INDIGENOUS-MULES/HORSES")
 
 # read in the data for large animals (cows etc)
 lvstock_large <- read_dta(file.path(dataPath, "AGSEC6A.dta")) %>%
-  select(HHID, animal=a6aq2, owned=a6aq4, qty=a6aq5)
+  select(HHID, animal=lvstid, owned=a6aq2, qty=a6aq3a)
 lvstock_large$owned <- ifelse(lvstock_large$owned %in% 1, 1, 0)
+lvstock_large$animal <- as_factor(lvstock_large$animal)
 
-# read in the data for small animals (sheep etc)
-lvstock_small <- read_dta(file.path(dataPath, "AGSEC6B.dta")) %>%
-  select(HHID, animal=a6bq2, owned=a6bq4, qty=a6bq5)
-lvstock_small$owned <- ifelse(lvstock_small$owned %in% 1, 1, 0)
+# read in the data for small animals (sheep etc) -> not codes!
+# lvstock_small <- read_dta(file.path(dataPath, "AGSEC6B.dta")) %>%
+#    select(HHID, animal=lvstid, owned=a6bq2, qty=a6bq3a)
+# lvstock_small$owned <- ifelse(lvstock_small$owned %in% 1, 1, 0)
 
 # combine and remove white space
-lvstock <- rbind(lvstock_large, lvstock_small)
+# lvstock <- rbind(lvstock_large, lvstock_small)
+lvstock <- lvstock_large
 lvstock$animal <- toupper(lvstock$animal)
 lvstock$animal <- gsub(" ", "-", lvstock$animal)
 lvstock <- lvstock[!lvstock$animal %in% "",]
@@ -253,9 +271,7 @@ lvstock_x <- select(lvstock, HHID, animal, qty) %>%
   melt(id = c("HHID", "animal")) %>%
   group_by(HHID, animal) %>%
   mutate(class = ifelse(animal %in% LR, "LR",
-                        ifelse(animal %in% SR, "SR", 
-                               ifelse(animal %in% PIGS, "PIGS_",
-                                      ifelse(animal %in% OTHER, "OTHER_"))))) %>%
+                        ifelse(animal %in% OTHER, "OTHER_"))) %>%
   group_by(HHID, class) %>%
   summarise(n=sum(value, na.rm=TRUE)) %>%
   dcast(HHID ~ class)
@@ -270,9 +286,10 @@ lvstock_y <- select(lvstock, HHID, animal, qty) %>%
 # join together
 lvstock <- left_join(lvstock_x, lvstock_y)
 lvstock[is.na(lvstock)] <- 0
+lvstock$HHID <- as.character(lvstock$HHID)
 
-rm("LR", "SR", "lvstock_small", "lvstock_large",
-   "lvstock_x", "lvstock_y", "OTHER", "PIGS")
+rm("LR", "lvstock_large",
+   "lvstock_x", "lvstock_y", "OTHER")
 
 #######################################
 ########### CROSS SECTION #############
@@ -280,18 +297,19 @@ rm("LR", "SR", "lvstock_small", "lvstock_large",
 
 # joins at the household level (HHID)
 
-UGA2009 <- left_join(location, HH09); rm(location); rm(HH09)
-UGA2009 <- left_join(UGA2009, geo09); rm(geo09)
-UGA2009 <- left_join(UGA2009, asset); rm(asset)
-UGA2009 <- left_join(UGA2009, lvstock); rm(lvstock)
-UGA2009 <- left_join(UGA2009, areaTotal); rm(areaTotal)
+UGA2011 <- left_join(location, HH11); rm(location); rm(HH11)
+UGA2011 <- left_join(UGA2011, geo11); rm(geo11)
+UGA2011 <- left_join(UGA2011, asset); rm(asset)
+UGA2011 <- left_join(UGA2011, lvstock); rm(lvstock)
 
 # joins at the parcel level
-UGA2009 <- left_join(UGA2009, areas); rm(areas)
-UGA2009 <- left_join(UGA2009, parcel); rm(parcel)
+UGA2011 <- left_join(UGA2011, areaTotal); rm(areaTotal)
+UGA2011 <- left_join(UGA2011, areas); rm(areas)
+UGA2011 <- left_join(UGA2011, parcel); rm(parcel)
 
 # joins at the plot level
-UGA2009 <- left_join(UGA2009, oput); rm(oput)
-UGA2009 <- left_join(UGA2009, plot); rm(plot)
+UGA2011 <- left_join(UGA2011, oput); rm(oput)
+UGA2011 <- left_join(UGA2011, plot); rm(plot)
+UGA2011 <- left_join(UGA2011, crop); rm(crop)
 
 rm(list=ls()[!ls() %in% "UGA2011"])
