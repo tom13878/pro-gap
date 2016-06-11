@@ -3,7 +3,7 @@
 #######################################
 
 # Tom
-dataPath <- "C:/Users/Tomas/Documents/LEI/data/TZA/TZA2008/Data"
+dataPath <- "C:/Users/Tomas/Documents/LEI/data/TZA/2008/Data"
 
 # Michiel
 # dataPath <- ""
@@ -330,6 +330,10 @@ rm("LR", "SR", "lvstock_x", "lvstock_y", "OTHER", "PIGS", "POULTRY")
 land <- read_dta(file.path(dataPath, "/TZNPS1AGDTA_E/SEC_2A.dta")) %>%
   rename(area_sr = s2aq4, area_gps = area)
 
+# measurements are in acres -> change to hectacres
+land$areas_gps <- land$area_gps*0.404686
+land$area_sr <- land$area_sr*0.404686
+
 # where a gps measurement is missing, replace
 # with farmer estimate
 
@@ -367,7 +371,7 @@ tc$trans <- ifelse(tc$trans %in% 1, 1, 0)
 #######################################
 
 # key for joing individuals and households across years
-key <- read_dta(file.path(dataPath, "../../TZA2012/Data/NPSY3.PANEL.KEY.dta")) %>%
+key <- read_dta(file.path(dataPath, "../../2012/Data/NPSY3.PANEL.KEY.dta")) %>%
   select(-UPI3) %>% rename(hhid = y1_hhid, hhid2010 = y2_hhid, hhid2012=y3_hhid)
 key$hhid <- zap_empty(key$hhid)
 key$hhid2010 <- zap_empty(key$hhid2010)
