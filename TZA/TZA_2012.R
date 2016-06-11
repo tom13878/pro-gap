@@ -3,7 +3,7 @@
 #######################################
 
 # Tom
-dataPath <- "C:/Users/Tomas/Documents/LEI/data/TZA/TZA2012/Data"
+dataPath <- "C:/Users/Tomas/Documents/LEI/data/TZA/2012/Data"
 
 # Michiel
 # dataPath <- ""
@@ -434,7 +434,8 @@ TZA2012 <- mutate(TZA2012,
                   P=P/area_gps,
                   lab=lab/area_gps,
                   pest_q=pest_q/area_gps,
-                  asset=value/area_tot
+                  assetph=value/area_tot,
+                  asset=value
 )
 
 TZA2012 <- select(TZA2012, -qty, -value)

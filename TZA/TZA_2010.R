@@ -3,7 +3,7 @@
 #######################################
 
 # Tom
-dataPath <- "C:/Users/Tomas/Documents/LEI/data/TZA/TZA2010/Data"
+dataPath <- "C:/Users/Tomas/Documents/LEI/data/TZA/2010/Data"
 
 # Michiel
 # dataPath <- ""
@@ -396,7 +396,7 @@ tc$trans <- ifelse(tc$trans %in% 1, 1, 0)
 #######################################
 
 # key for joing individuals and households across years
-key <- read_dta(file.path(dataPath, "../../TZA2012/Data/NPSY3.PANEL.KEY.dta")) %>%
+key <- read_dta(file.path(dataPath, "../../2012/Data/NPSY3.PANEL.KEY.dta")) %>%
   select(-UPI3) %>% rename(hhid2008 = y1_hhid, hhid2012=y3_hhid)
 key$hhid2008 <- zap_empty(key$hhid2008)
 key$y2_hhid <- zap_empty(key$y2_hhid)
@@ -439,7 +439,7 @@ TZA2010 <- mutate(TZA2010,
                   P=P/area_gps,
                   lab=lab/area_gps,
                   pest_q=pest_q/area_gps,
-                  asset=value/area_tot
+                  assetph=value/area_tot
 )
 
 # -------------------------------------
@@ -450,15 +450,17 @@ TZA2010 <- mutate(TZA2010,
 # -------------------------------------
 
 inflation <- read.csv(file.path(paste0(dataPath,"/../../.."), "inflation.csv"))
-rate2011 <- inflation$inflation[inflation$code=="TZ" & inflation$year==2011]
-rate2013 <- inflation$inflation[inflation$code=="TZ" & inflation$year==2013]
+rate2011 <- inflation$inflation[inflation$code=="TZ" & inflation$year==2011]/100
+rate2013 <- inflation$inflation[inflation$code=="TZ" & inflation$year==2013]/100
+inflate <- (1 + rate2011)*(1 + rate2013)
 
 TZA2010 <- mutate(TZA2010,
-                  asset = asset*(1 + rate2011)*(1 + rate2013),
-                  crop_price = crop_price*(1 + rate2011)*(1 + rate2013),
-                  WPn = WPn*(1 + rate2011)*(1 + rate2013),
-                  WPnnosub = WPnnosub*(1 + rate2011)*(1 + rate2013),
-                  WPnsub = WPnsub*(1 + rate2011)*(1 + rate2013))
+                  asset = value*inflate,
+                  assetph = assetph*inflate,
+                  crop_price = crop_price*inflate,
+                  WPn = WPn*inflate,
+                  WPnnosub = WPnnosub*inflate,
+                  WPnsub = WPnsub*inflate)
 
 TZA2010 <- select(TZA2010, -qty, -value)
 

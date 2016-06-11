@@ -414,7 +414,7 @@ TZA2008 <- mutate(TZA2008,
                   P=P/area,
                   lab=lab/area,
                   pest_q=pest_q/area,
-                  asset=value/area_tot
+                  assetph=value/area_tot
 )
 
 # -------------------------------------
@@ -425,15 +425,16 @@ TZA2008 <- mutate(TZA2008,
 # -------------------------------------
 
 inflation <- read.csv(file.path(paste0(dataPath,"/../../.."), "inflation.csv"))
-rate2009 <- inflation$inflation[inflation$code=="TZ" & inflation$year==2009]
-rate2010 <- inflation$inflation[inflation$code=="TZ" & inflation$year==2010]
-rate2011 <- inflation$inflation[inflation$code=="TZ" & inflation$year==2011]
-rate2012 <- inflation$inflation[inflation$code=="TZ" & inflation$year==2012]
+rate2009 <- inflation$inflation[inflation$code=="TZ" & inflation$year==2009]/100
+rate2010 <- inflation$inflation[inflation$code=="TZ" & inflation$year==2010]/100
+rate2011 <- inflation$inflation[inflation$code=="TZ" & inflation$year==2011]/100
+rate2012 <- inflation$inflation[inflation$code=="TZ" & inflation$year==2012]/100
 
 inflate <- (1 + rate2009)*(1 + rate2010)*(1 + rate2011)*(1 + rate2012)
 
 TZA2008 <- mutate(TZA2008,
-                  asset = asset*inflate,
+                  asset = value*inflate,
+                  assetph = assetph*inflate,
                   crop_price = crop_price*inflate,
                   WPn = WPn*inflate)
 
