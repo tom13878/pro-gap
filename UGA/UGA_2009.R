@@ -19,20 +19,22 @@ options(scipen=999)
 #######################################
 
 location <- read_dta(file.path(dataPath, "GSEC1.dta")) %>%
-  select(HHID, region, rural=urban, h1aq1, h1aq1_05)
+  select(HHID, REGCODE=region, rural=urban, DISTCODE=h1aq1)
 location$rural <- ifelse(location$rural %in% 0, 1, 0)
-location$region <- as_factor(location$region)
+location$REGNAME <- toupper(as_factor(location$REGCODE))
+location$REGNAME <- gsub(" without Kampala", "", location$REGNAME)
+location$REGCODE <- as.numeric(location$REGCODE)
 
 #######################################
 ########### SOCIO/ECONOMIC ############
 #######################################
 
 HH09 <- read_dta(file.path(dataPath, "GSEC2.dta")) %>%
-  select(HHID, PID, status=h2q4, sex=h2q3,
+  select(HHID, indidy1=PID, status=h2q4, sex=h2q3,
          yob=h2q9c, age=h2q8)
 
 HH09$status <- toupper(as_factor(HH09$status))
-HH10$sex <- as.integer(HH10$sex) # female = 1
+HH09$sex <- as.integer(HH09$sex) # female = 1
 HH09$yob <- as.integer(HH09$yob)
 
 # make a new variable cage (cut age = cage) which splits
@@ -47,7 +49,7 @@ HH09$cage <- cut(HH09$age, breaks = c(0, 15, 55, max(HH09$age, na.rm=TRUE)),
 # between the ages of 15 and 55
 
 ed <- read_dta(file.path(dataPath, "GSEC4.dta")) %>%
-  select(HHID, PID, ed_any=h4q5, grade=h4q7)
+  select(HHID, indidy1=PID, ed_any=h4q5, grade=h4q7)
 
 ed$ed_any <- ifelse(ed$ed_any %in% c(2, 3), 1, 0) # ever went to school
 ed$grade <- as_factor(ed$grade)
@@ -82,9 +84,9 @@ credit <- read_dta(file.path(dataPath, "GSEC13.dta")) %>%
   select(HHID, h13q01:h13q03) %>% 
   melt(id = "HHID") %>%
   group_by(HHID) %>%
-  summarise(credit=any(value %in% 1))
+  summarise(SACCO=any(value %in% 1))
 
-credit$credit <- ifelse(credit$credit, 1, 0)
+credit$SACCO <- ifelse(credit$SACCO, 1, 0)
 
 HH09 <- left_join(HH09, death) 
 HH09 <- left_join(HH09, credit) 
@@ -99,11 +101,11 @@ oput <- read_dta(file.path(dataPath, "AGSEC5B.dta")) %>%
   select(HHID, parcel_id = a5bq1, plot_id = a5bq3, crop_name = a5bq4, crop_code = a5bq5,
          qty=a5bq6a, qty_unit=a5bq6c, qty_unit2kg = a5bq6d,
          qty_sold=a5bq7a, qty_sold_unit=a5bq7c, value = a5bq8,
-         tc = a5bq10)
+         trans_cost = a5bq10)
 
 oput$qty <- oput$qty * oput$qty_unit2kg
 oput$qty_sold <- oput$qty_sold * oput$qty_unit2kg
-oput <- select(oput, HHID, parcel_id, plot_id, crop_name, crop_code, qty, qty_sold, value, tc)
+oput <- select(oput, HHID, parcel_id, plot_id, crop_name, crop_code, qty, qty_sold, value, trans_cost)
 
 # change ids to integer
 oput$parcel_id <- as.integer(oput$parcel_id)
@@ -142,6 +144,7 @@ oput <- oput[! is.na(oput$qty) & !oput$qty %in% 0, ]
 oput$qty_sold[oput$qty_sold %in% 0] <- NA
 oput$crop_price <- oput$value/oput$qty_sold
 oput$value <- NULL 
+oput$parcel_id <- as.character(oput$parcel_id)
 
 rm(list=c("legumes", "cashCropNPerm", "cashCropsPerm",
           "CTR", "fruit", "vegetables"))
@@ -167,7 +170,17 @@ plot$typ <- as_factor(plot$typ)
 plot$pest_unit <- as_factor(plot$pest_unit)
 plot$hir_lab <- as_factor(plot$hir_lab)
 plot$HHID <- as.character(plot$HHID)
+plot$parcel_id <- as.character(plot$parcel_id)
 
+# make a single plot labour variable
+lab <- c("fam_lab_people", "fam_lab_days", "hir_lab_men_days", "hir_lab_woman_days", "hir_lab_child_days")
+plot[, lab][is.na(plot[, lab])] <- 0;rm(lab)
+plot <- mutate(plot,
+               fam_lab=fam_lab_people * fam_lab_days,
+               hir_lab=hir_lab_men_days+hir_lab_woman_days+hir_lab_child_days)
+plot$lab <- plot$fam_lab + plot$hir_lab
+
+# crop level variables
 crop <- read_dta(file.path(dataPath, "AGSEC4A.dta")) %>% 
   select(HHID, parcel_id=a4aq2, plot_id=a4aq4, crop_name=a4aq5, crop_code=a4aq6,
          inter_crop=a4aq7, share=a4aq8, area_share=a4aq9, hybrd=a4aq13)
@@ -182,7 +195,12 @@ crop$HHID <- as.character(crop$HHID)
 parcel <- read_dta(file.path(dataPath, "AGSEC2A.dta")) %>% 
   select(HHID, parcel_id=a2aq2, soil=a2aq18, irrig=a2aq20,
          slope_farmer=a2aq21)
+
+parcel$irrig <- ifelse(parcel$irrig %in% 1, 1, 0)
+parcel$soil <- as_factor(parcel$soil)
+parcel$slope_farmer <- as_factor(parcel$slope_farmer)
 parcel$HHID <- as.character(parcel$HHID)
+parcel$parcel_id <- as.character(parcel$parcel_id)
 
 #######################################
 ############### GEO ###################
@@ -204,6 +222,7 @@ areas <- read_dta(file.path(dataPath, "AGSEC2A.dta")) %>%
 areas$own <- as_factor(areas$own)
 areas$area_gps <- ifelse(areas$area_gps %in% 0, NA, areas$area_gps)
 areas$area <- ifelse(is.na(areas$area_gps), areas$area_farmer, areas$area_gps)
+areas$parcel_id <- as.character(parcel$parcel_id)
 
 # calcualte the households total land holdings
 areaTotal <- group_by(areas, HHID) %>%
@@ -220,7 +239,7 @@ asset <- read_dta(file.path(dataPath, "GSEC14.dta")) %>%
   filter(!qty %in% 0, !is.na(qty), !value %in% 0, !is.na(value)) %>%
   transmute(HHID, value=qty*value) %>%
   group_by(HHID) %>%
-  summarise(value=sum(value))
+  summarise(asset=sum(value))
 
 # -------------------------------------
 # Livestock assets
@@ -294,4 +313,54 @@ UGA2009 <- left_join(UGA2009, parcel); rm(parcel)
 UGA2009 <- left_join(UGA2009, oput); rm(oput)
 UGA2009 <- left_join(UGA2009, plot); rm(plot)
 
-rm(list=ls()[!ls() %in% "UGA2011"])
+# -------------------------------------
+# Make some new variables
+# -------------------------------------
+
+# per hectacre
+UGA2009 <- mutate(UGA2009,
+                  yld=qty/area_gps,
+                  lab=lab/area_gps,
+                  assetph=asset/area_tot
+)
+
+# -------------------------------------
+# remove some variables which may be of
+# use later on but which are not 
+# required now
+# -------------------------------------
+
+UGA2009 <- select(UGA2009, -yob,
+                  -typ, -inorg_qty, -inorg_purch,
+                  -inorg_purch_qty, -inorg_value,
+                  -pest_unit, -pest_qty, -pest_purch,
+                  -pest_purch_qty, -pest_purch_value,
+                  -fam_lab_people, -fam_lab_days,
+                  - hir_lab, -hir_lab_men_days, 
+                  -hir_lab_woman_days, -hir_lab_child_days,
+                  -fam_lab)
+
+# -------------------------------------
+# Inflate 2009 prices to 2011 prices: assets, fertilizer and maize prices
+# using inflation rate for 2011 and 2013. These years were selected as the main part of the survey takes place in these years.
+# from world bank:
+# http://data.worldbank.org/indicator/FP.CPI.TOTL.ZG/countries/TZ?display=graph
+# -------------------------------------
+
+inflation <- read.csv(file.path(paste0(dataPath,"/../../.."), "inflation.csv"))
+rate2010 <- inflation$inflation[inflation$code=="UG" & inflation$year==2010]/100
+rate2011 <- inflation$inflation[inflation$code=="UG" & inflation$year==2011]/100
+inflate <- (1 + rate2011)*(1 + rate2013)
+
+UGA2009 <- mutate(UGA2009,
+                  asset = asset*inflate,
+                  assetph = assetph*inflate,
+                  crop_price = crop_price*inflate,)
+
+# add final variables
+
+UGA2009 <- mutate(UGA2009, surveyyear=2009) %>% rename(hhid2009=HHID)
+
+rm(list=ls()[!ls() %in% c("UGA2009", "dataPath")])
+
+# saveRDS(UGA2009, file.path(dataPath, "/../../UGA2009.rds"))
