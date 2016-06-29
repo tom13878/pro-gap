@@ -5,13 +5,7 @@
 # Tom
 dataPath <- "C:/Users/Tomas/Documents/LEI/data/TZA/2010/Data"
 
-# Michiel
-# dataPath <- ""
-
-# Anne
-# dataPath <- ""
-
-# Vincent
+# LEI path
 # dataPath <- ""
 
 library(haven)
@@ -115,12 +109,22 @@ rm(ed, credit, death)
 #######################################
 
 oput <- read_dta(file.path(dataPath, "TZNPS2AGRDTA/AG_SEC4A.dta")) %>%
-  select(y2_hhid, plotnum, zaocode, inter_crop=ag4a_04,
-         harv_area=ag4a_08, qty=ag4a_15, valu=ag4a_16, hybrd=ag4a_23)
+  select(y2_hhid, plotnum, zaocode, one_crop=ag4a_01,
+         crop_share=ag4a_02, inter_crop=ag4a_04,
+         harv_area=ag4a_08, harv_area2=ag4a_09,
+         harv_area3=ag4a_10, qty=ag4a_15, valu=ag4a_16,
+         hybrd=ag4a_23)
 
+oput$one_crop <- ifelse(oput$one_crop %in% 1, 1, 0)
+oput$crop_share <- as_factor(oput$crop_share)
 oput$inter_crop <- ifelse(oput$inter_crop %in% 1, 1, 0)
 oput$hybrd <- ifelse(oput$hybrd %in% 2, 1, 0)
 oput$zaocode <- as.integer(oput$zaocode)
+oput$harv_area2 <- as_factor(oput$harv_area2)
+oput$harv_area3 <- toupper(as_factor(oput$harv_area3))
+
+# -------------------------------------
+# ideal situation
 
 # -------------------------------------
 # create dummy variables for crop groups
@@ -210,7 +214,7 @@ levels(fert1$typ) <- levels(fert2$typ) <-
 # Data on NPK composition from Sheahan et al (2014), Food Policy
 # -------------------------------------
 
-conv <- read.csv(file.path(paste0(dataPath,"/../../.."), "Fert_comp.csv")) %>%
+conv <- read.csv(file.path(paste0(dataPath,"/../../.."), "Other/Fertilizer/Fert_comp.csv")) %>%
   transmute(typ=Fert_type2, n=N_share/100, p=P_share/100) %>%
   filter(typ %in% levels(fert1$typ))
 
@@ -449,7 +453,7 @@ TZA2010 <- mutate(TZA2010,
 # http://data.worldbank.org/indicator/FP.CPI.TOTL.ZG/countries/TZ?display=graph
 # -------------------------------------
 
-inflation <- read.csv(file.path(paste0(dataPath,"/../../.."), "inflation.csv"))
+inflation <- read.csv(file.path(paste0(dataPath,"/../../.."), "Other/Inflation/inflation.csv"))
 rate2011 <- inflation$inflation[inflation$code=="TZ" & inflation$year==2011]/100
 rate2013 <- inflation$inflation[inflation$code=="TZ" & inflation$year==2013]/100
 inflate <- (1 + rate2011)*(1 + rate2013)

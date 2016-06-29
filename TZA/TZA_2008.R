@@ -5,13 +5,7 @@
 # Tom
 dataPath <- "C:/Users/Tomas/Documents/LEI/data/TZA/2008/Data"
 
-# Michiel
-# dataPath <- ""
-
-# Anne
-# dataPath <- ""
-
-# Vincent
+# LEI path
 # dataPath <- ""
 
 library(haven)
@@ -98,6 +92,8 @@ credit <- read_dta(file.path(dataPath, "TZNPS1HHDTA_E/SEC_O3.dta")) %>%
 
 HH08 <- left_join(HH08, death) 
 HH08 <- left_join(HH08, credit) 
+HH08$death <- ifelse(is.na(HH08$death), 0, 1)
+HH08$SACCO <- ifelse(is.na(HH08$SACCO), 0, 1)
 
 rm(ed, credit, death)
 
@@ -106,12 +102,20 @@ rm(ed, credit, death)
 #######################################
 
 oput <- read_dta(file.path(dataPath, "TZNPS1AGDTA_E/SEC_4A.dta")) %>%
-  dplyr::select(hhid, plotnum, zaocode, inter_crop=s4aq6,
-                harv_area=s4aq8, qty=s4aq15, valu=s4aq16, hybrd=s4aq22)
+  dplyr::select(hhid, plotnum, zaocode, 
+                one_crop=s4aq3, crop_share=s4aq4,
+                inter_crop=s4aq6, harv_area=s4aq8,
+                harv_area2=s4aq9, harv_area3=s4aq10,
+                qty=s4aq15, valu=s4aq16, hybrd=s4aq22)
 
+oput$one_crop <- ifelse(oput$one_crop %in% 1, 1, 0)
+oput$crop_share <- as_factor(oput$crop_share)
 oput$inter_crop <- ifelse(oput$inter_crop %in% 1, 1, 0)
 oput$hybrd <- ifelse(oput$hybrd %in% 2, 1, 0)
 oput$zaocode <- as.integer(oput$zaocode)
+oput$harv_area2 <- as_factor(oput$harv_area2)
+oput$harv_area3 <- toupper(as_factor(oput$harv_area3))
+levels(oput$crop_share) <- c("1/4", "1/2", "3/4")
 
 # -------------------------------------
 # create dummy variables for crop groups
@@ -200,7 +204,7 @@ levels(fert$typ) <-
 # Data on NPK composition from Sheahan et al (2014), Food Policy
 # -------------------------------------
 
-conv <- read.csv(file.path(paste0(dataPath,"/../../.."), "Fert_comp.csv")) %>%
+conv <- read.csv(file.path(paste0(dataPath,"/../../.."), "Other/Fertilizer/Fert_comp.csv")) %>%
   transmute(typ=Fert_type2, n=N_share/100, p=P_share/100) %>%
   filter(typ %in% levels(fert$typ))
 
@@ -358,6 +362,14 @@ areaTotal <- group_by(land, hhid) %>%
 rm(own)
 
 #######################################
+####### Extension Services ############
+#######################################
+
+ext <- read_dta(file.path(dataPath, "TZNPS1AGDTA_E/SEC_QNFLOW.dta")) %>%
+  select(hhid, region, district, s13q10:s13q15)
+
+
+#######################################
 ########## TRANSPORT COSTS ############
 #######################################
 
@@ -424,7 +436,7 @@ TZA2008 <- mutate(TZA2008,
 # http://data.worldbank.org/indicator/FP.CPI.TOTL.ZG/countries/TZ?display=graph
 # -------------------------------------
 
-inflation <- read.csv(file.path(paste0(dataPath,"/../../.."), "inflation.csv"))
+inflation <- read.csv(file.path(paste0(dataPath,"/../../.."), "Other/Inflation/inflation.csv"))
 rate2009 <- inflation$inflation[inflation$code=="TZ" & inflation$year==2009]/100
 rate2010 <- inflation$inflation[inflation$code=="TZ" & inflation$year==2010]/100
 rate2011 <- inflation$inflation[inflation$code=="TZ" & inflation$year==2011]/100
