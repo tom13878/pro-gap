@@ -19,16 +19,17 @@ options(scipen=999)
 #######################################
 
 location <- read_dta(file.path(dataPath, "GSEC1.dta")) %>%
-  select(HHID, region, rural=urban, district=h1aq1)
+  select(HHID, REGCODE=region, rural=urban, DISNAME=h1aq1)
 location$rural <- ifelse(location$rural %in% 0, 1, 0)
-location$region <- as_factor(location$region)
+location$REGNAME <- toupper(as_factor(location$REGCODE))
+location$REGCODE <- as.numeric(location$REGCODE)
 
 #######################################
 ########### SOCIO/ECONOMIC ############
 #######################################
 
 HH10 <- read_dta(file.path(dataPath, "GSEC2.dta")) %>%
-  select(HHID, PID, status=h2q4, sex=h2q3,
+  select(HHID, indidy2=PID, status=h2q4, sex=h2q3,
          yob=h2q9c, age=h2q8)
 
 HH10$status <- toupper(as_factor(HH10$status))
@@ -47,7 +48,7 @@ HH10$cage <- cut(HH10$age, breaks = c(0, 15, 55, max(HH10$age, na.rm=TRUE)),
 # between the ages of 15 and 55
 
 ed <- read_dta(file.path(dataPath, "GSEC4.dta")) %>%
-  select(HHID, PID, ed_any=h4q5, grade=h4q7)
+  select(HHID, indidy2=PID, ed_any=h4q5, grade=h4q7)
 
 ed$ed_any <- ifelse(ed$ed_any %in% c(2, 3), 1, 0) # ever went to school
 
@@ -97,12 +98,12 @@ oput <- read_dta(file.path(dataPath, "AGSEC5A.dta")) %>%
   select(HHID, parcel_id=prcid, plot_id=pltid, crop_code=cropID,
          qty=a5aq6a, qty_unit=a5aq6c, qty_unit2kg = a5aq6d,
          qty_sold=a5aq7a, qty_sold_unit=a5aq7c, value = a5aq8,
-         tc = a5aq10)
+         trans_cost = a5aq10)
 
 oput$crop_code <- as.integer(oput$crop_code)
 oput$qty <- oput$qty * oput$qty_unit2kg
 oput$qty_sold <- oput$qty_sold * oput$qty_unit2kg
-oput <- select(oput, HHID, parcel_id, plot_id, crop_code, qty, qty_sold, value, tc)
+oput <- select(oput, HHID, parcel_id, plot_id, crop_code, qty, qty_sold, value, trans_cost)
 
 # change ids to integer
 oput$parcel_id <- as.integer(oput$parcel_id)
@@ -165,16 +166,20 @@ plot$pest_purch <- ifelse(plot$pest_purch %in% 1, 1, 0)
 plot$typ <- as_factor(plot$typ)
 plot$pest_unit <- as_factor(plot$pest_unit)
 plot$hir_lab <- as_factor(plot$hir_lab)
-plot$hir_lab_men_days <- ifelse(is.na(plot$hir_lab_men_days), 0, plot$hir_lab_men_days)
-plot$hir_lab_woman_days <- ifelse(is.na(plot$hir_lab_woman_days), 0, plot$hir_lab_woman_days)
-plot$hir_lab_child_days <- ifelse(is.na(plot$hir_lab_child_days), 0, plot$hir_lab_child_days)
+
+# make a single plot labour variable
+lab <- c("fam_lab_people", "fam_lab_days", "hir_lab_men_days", "hir_lab_woman_days", "hir_lab_child_days")
+plot[, lab][is.na(plot[, lab])] <- 0;rm(lab)
+plot <- mutate(plot,
+               fam_lab=fam_lab_people * fam_lab_days,
+               hir_lab=hir_lab_men_days+hir_lab_woman_days+hir_lab_child_days)
+plot$lab <- plot$fam_lab + plot$hir_lab
 
 # there are many variables in the plot section.
 # select those that are close enough to the
 # other countries and make most sense
 plot <- transmute(plot, HHID, parcel_id, plot_id, manure, manure_qty,
-               inorg, pest, famLab = fam_lab_days,
-               hirLab = hir_lab_men_days + hir_lab_woman_days + hir_lab_child_days)
+               inorg, pest, lab)
 plot$HHID <- as.character(plot$HHID)
 
 # crop level variables
@@ -192,10 +197,8 @@ parcel <- read_dta(file.path(dataPath, "AGSEC2A.dta")) %>%
          slope_farmer=a2aq21)
 
 parcel$soil <- as_factor(parcel$soil)
-parcel$irrig <- as_factor(parcel$irrig)
+parcel$irrig <- ifelse(parcel$irrig %in% 1, 1, 0)
 parcel$slope_farmer <- as_factor(parcel$slope_farmer)
-parcel$HHID <- as.character(parcel$HHID)
-
 
 #######################################
 ############### GEO ###################
@@ -233,7 +236,7 @@ asset <- read_dta(file.path(dataPath, "GSEC14.dta")) %>%
   filter(!qty %in% 0, !is.na(qty), !value %in% 0, !is.na(value)) %>%
   transmute(HHID, value=qty*value) %>%
   group_by(HHID) %>%
-  summarise(value=sum(value))
+  summarise(asset=sum(value))
 
 # -------------------------------------
 # Livestock assets
@@ -307,4 +310,44 @@ UGA2010 <- left_join(UGA2010, oput); rm(oput)
 UGA2010 <- left_join(UGA2010, plot); rm(plot)
 UGA2010 <- left_join(UGA2010, crop); rm(crop)
 
-rm(list=ls()[!ls() %in% "UGA2010"])
+# -------------------------------------
+# Make some new variables
+# -------------------------------------
+
+# per hectacre
+UGA2010 <- mutate(UGA2010,
+                  yld=qty/area_gps,
+                  lab=lab/area_gps,
+                  assetph=asset/area_tot)
+
+# -------------------------------------
+# remove some variables which may be of
+# use later on but which are not 
+# required now
+# -------------------------------------
+
+
+# -------------------------------------
+# Inflate 2010 prices to 2011 prices:
+# assets, fertilizer and maize prices
+# using inflation rate for 2011 and 2013.
+# from world bank:
+# http://data.worldbank.org/indicator/FP.CPI.TOTL.ZG/countries/TZ?display=graph
+# -------------------------------------
+
+inflation <- read.csv(file.path(paste0(dataPath,"/../../.."), "Other/Inflation/inflation.csv"))
+rate2011 <- inflation$inflation[inflation$code=="UG" & inflation$year==2011]
+inflate <- rate2011
+
+UGA2010 <- mutate(UGA2010,
+                  asset = asset*inflate,
+                  assetph = assetph*inflate,
+                  crop_price = crop_price*inflate)
+
+# add final variables
+
+UGA2010 <- mutate(UGA2010, surveyyear=2010) %>% rename(hhid2010=HHID)
+
+rm(list=ls()[!ls() %in% c("UGA2010", "dataPath")])
+
+# saveRDS(UGA2010, file.path(dataPath, "/../../UGA2010.rds"))
