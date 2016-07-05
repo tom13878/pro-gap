@@ -5,8 +5,8 @@
 # Tom
 dataPath <- "C:/Users/Tomas/Documents/LEI/data/TZA/2008/Data"
 
-# LEI path
-# dataPath <- ""
+# LEI Path
+# dataPath <- "W:/LEI/Internationaal Beleid  (IB)/Projecten/2285000066 Africa Maize Yield Gap/SurveyData/TZA/2008/Data"
 
 library(haven)
 library(stringr)
@@ -28,7 +28,7 @@ location$REGCODE <- as.integer(location$REGCODE)
 
 # match up with the names from the survey (prepared in a seperate file)
 
-ZONEREGDIS <- read.csv(file.path(paste0(dataPath,"/../.."), "ZONEREGDIS.csv"))
+ZONEREGDIS <- read.csv(file.path(paste0(dataPath,"/../../.."), "Other/Spatial/TZA/ZONEREGDIS.csv"))
 
 # join with household identifications
 
@@ -92,8 +92,6 @@ credit <- read_dta(file.path(dataPath, "TZNPS1HHDTA_E/SEC_O3.dta")) %>%
 
 HH08 <- left_join(HH08, death) 
 HH08 <- left_join(HH08, credit) 
-HH08$death <- ifelse(is.na(HH08$death), 0, 1)
-HH08$SACCO <- ifelse(is.na(HH08$SACCO), 0, 1)
 
 rm(ed, credit, death)
 
@@ -108,14 +106,14 @@ oput <- read_dta(file.path(dataPath, "TZNPS1AGDTA_E/SEC_4A.dta")) %>%
                 harv_area2=s4aq9, harv_area3=s4aq10,
                 qty=s4aq15, valu=s4aq16, hybrd=s4aq22)
 
-oput$one_crop <- ifelse(oput$one_crop %in% 1, 1, 0)
 oput$crop_share <- as_factor(oput$crop_share)
-oput$inter_crop <- ifelse(oput$inter_crop %in% 1, 1, 0)
-oput$hybrd <- ifelse(oput$hybrd %in% 2, 1, 0)
 oput$zaocode <- as.integer(oput$zaocode)
 oput$harv_area2 <- as_factor(oput$harv_area2)
 oput$harv_area3 <- toupper(as_factor(oput$harv_area3))
 levels(oput$crop_share) <- c("1/4", "1/2", "3/4")
+
+# harv area is in acres -> change to hectares
+oput$harv_area <- oput$harv_area*0.404686
 
 # -------------------------------------
 # create dummy variables for crop groups
@@ -166,23 +164,19 @@ plot <- read_dta(file.path(dataPath, "/TZNPS1AGDTA_E/SEC_3A.dta")) %>%
 plot$zaocode <- as.integer(plot$zaocode)
 plot$soil <- factor(plot$soil, levels=c(1,2,3,4), labels=c("Sandy", "Loam", "Clay", "Other"))
 plot$slope_farmer <- factor(plot$slope_farmer, levels=c(1,2,3,4), labels=c("Flat bottom", "Flat top", "Slightly sloped", "Very steep"))
-plot$title <- ifelse(plot$title %in% 1, 1, 0) # assume that they don't have a title if NA
-plot$irrig <- ifelse(plot$irrig %in% 1, 1, 0)
-plot$manure <- ifelse(plot$manure %in% 1, 1, 0)
-plot$pest <- ifelse(plot$pest %in% 1, 1, 0)
 plot$pest_q_unit <- as_factor(plot$pest_q_unit)
+plot$fallow <- ifelse(plot$fallow_year %in% 0, 0, plot$fallow )
+plot$fallow <- ifelse(is.na(plot$fallow_year), NA, plot$fallow) 
+
 
 plot$pest_q <- ifelse(plot$pest_q_unit %in% c("LITRE", "KG"), plot$pest_q,
                       ifelse(plot$pest_q_unit %in% "MILLILITRE", plot$pest_q*0.001, NA))
-
 
 # two questions on fallow - make sure they match up correctly
 # fallow value of 98 means subject did not know how long plot
 # was left fallow
 
 plot$fallow_year <- ifelse(plot$fallow_year %in% 98, NA, plot$fallow_year)
-plot$fallow <- ifelse(plot$fallow_year %in% 0, 0, plot$fallow )
-plot$fallow <- ifelse(is.na(plot$fallow_year), NA, plot$fallow)
 plot <- dplyr::select(plot, -fallow_year, - pest_q_unit)
 
 # inorganic fertilizer - note that there is no inorganic fertilizer
@@ -250,7 +244,7 @@ lab <- transmute( lab, hhid, plotnum,
 
 lab <- transmute(lab, hhid, plotnum, lab=fam_lab_days + hir_lab_days)
 
-# doesn't make sense to have 0 labour on a plot so set values to zero
+# doesn't make sense to have 0 labour on a plot so set values to NA
 lab$lab <- ifelse(lab$lab %in% 0, NA, lab$lab)
 
 rm(bad)
@@ -376,8 +370,6 @@ ext <- read_dta(file.path(dataPath, "TZNPS1AGDTA_E/SEC_QNFLOW.dta")) %>%
 tc <- read_dta(file.path(dataPath, "/TZNPS1AGDTA_E/SEC_5a.dta")) %>%
   dplyr::select(hhid, zaocode, trans=s5aq9, trans_dist=s5aq10, trans_cost=s5aq13)
 
-tc$trans <- ifelse(tc$trans %in% 1, 1, 0)
-
 #######################################
 ############ PANEL KEY ################
 #######################################
@@ -411,13 +403,26 @@ TZA2008 <- left_join(TZA2008, lab); rm(lab)
 TZA2008 <- left_join(TZA2008, land); rm(land)
 
 # -------------------------------------
-# Make some new variables
+# For some questions respondents answered
+# NA, it is not certain how these responses
+# should be treated. Often we assume that
+# an NA is equivalent to NO/0
 # -------------------------------------
 
-# amend the death and SACCO variables
+TZA2008$SACCO <- ifelse(TZA2008$SACCO %in% 1, 1, 0) # assume NA -> no SACCO
+TZA2008$death <- ifelse(TZA2008$death %in% 1, 1, 0) # assume NA -> no death
+TZA2008$one_crop <- ifelse(TZA2008$one_crop %in% 1, 1, 0)
+TZA2008$inter_crop <- ifelse(TZA2008$inter_crop %in% 1, 1, 0)
+TZA2008$hybrd <- ifelse(TZA2008$hybrd %in% 2, 1, 0)
+TZA2008$title <- ifelse(TZA2008$title %in% 1, 1, 0) # assume NA -> no title
+TZA2008$irrig <- ifelse(TZA2008$irrig %in% 1, 1, 0) # assume NA -> no irrigation
+TZA2008$manure <- ifelse(TZA2008$manure %in% 1, 1, 0) # assume NA -> no manure
+TZA2008$pest <- ifelse(TZA2008$pest %in% 1, 1, 0) # assume NA -> no pesticide
+TZA2008$trans <- ifelse(TZA2008$trans %in% 1, 1, 0) # assume NA -> no transportation for crop
 
-TZA2008$SACCO <- ifelse(TZA2008$SACCO == 1, 1, 0)
-TZA2008$death <- ifelse(TZA2008$death == 1, 1, 0)
+# -------------------------------------
+# Make some new variables
+# -------------------------------------
 
 # per hectacre
 TZA2008 <- mutate(TZA2008,
@@ -450,7 +455,8 @@ TZA2008 <- mutate(TZA2008,
                   crop_price = crop_price*inflate,
                   WPn = WPn*inflate)
 
-TZA2008 <- select(TZA2008, -qty, -value)
+TZA2008 <- select(TZA2008, -value) %>% rename(crop_qty_harv = qty)
+
 
 # add final variables
 

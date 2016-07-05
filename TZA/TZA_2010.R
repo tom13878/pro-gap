@@ -5,8 +5,8 @@
 # Tom
 dataPath <- "C:/Users/Tomas/Documents/LEI/data/TZA/2010/Data"
 
-# LEI path
-# dataPath <- ""
+# LEI Path
+# dataPath <- "W:/LEI/Internationaal Beleid  (IB)/Projecten/2285000066 Africa Maize Yield Gap/SurveyData/TZA/2010/Data"
 
 library(haven)
 library(stringr)
@@ -27,7 +27,7 @@ location$rural <- as.integer(location$rural)
 
 # match up with the names from the survey (prepared in a seperate file)
 
-ZONEREGDIS <- read.csv(file.path(paste0(dataPath,"/../.."), "ZONEREGDIS.csv"))
+ZONEREGDIS <- read.csv(file.path(paste0(dataPath,"/../../.."), "Other/Spatial/TZA/ZONEREGDIS.csv"))
 
 # join with household identifications
 
@@ -123,8 +123,8 @@ oput$zaocode <- as.integer(oput$zaocode)
 oput$harv_area2 <- as_factor(oput$harv_area2)
 oput$harv_area3 <- toupper(as_factor(oput$harv_area3))
 
-# -------------------------------------
-# ideal situation
+# harv area is in acres -> change to hectares
+oput$harv_area <- oput$harv_area*0.404686
 
 # -------------------------------------
 # create dummy variables for crop groups
@@ -301,9 +301,8 @@ rm(bad)
 ############### GEO ###################
 #######################################
 
-geo10 <- read_dta(file.path(dataPath, "TZNPS2GEODTA/HH.Geovariables_Y2.dta")) %>%
-  select(y2_hhid, lon=lon_modified, lat=lat_modified, dist2town=dist02,
-         dist2market=dist03, dist2HQ=dist05, avgTemp=clim01, avgpPrecip=clim03)
+# add Michiel's geo files
+geo10 <- readRDS(file.path(dataPath, "../../../Other/Spatial/TZA/TZA_geo_2010.rds")) 
 
 #######################################
 ############### AREAs #################
@@ -455,6 +454,7 @@ TZA2010 <- mutate(TZA2010,
 
 inflation <- read.csv(file.path(paste0(dataPath,"/../../.."), "Other/Inflation/inflation.csv"))
 rate2011 <- inflation$inflation[inflation$code=="TZ" & inflation$year==2011]/100
+rate2012 <- inflation$inflation[inflation$code=="TZ" & inflation$year==2012]/100
 rate2013 <- inflation$inflation[inflation$code=="TZ" & inflation$year==2013]/100
 inflate <- (1 + rate2011)*(1 + rate2013)
 
@@ -466,7 +466,7 @@ TZA2010 <- mutate(TZA2010,
                   WPnnosub = WPnnosub*inflate,
                   WPnsub = WPnsub*inflate)
 
-TZA2010 <- select(TZA2010, -qty, -value)
+TZA2010 <- select(TZA2010, -value) %>% rename(crop_qty_harv = qty)
 
 # add final variables
 

@@ -6,7 +6,7 @@
 dataPath <- "C:/Users/Tomas/Documents/LEI/data/TZA/2012/Data"
 
 # LEI Path
-# dataPath <- ""
+# dataPath <- "W:/LEI/Internationaal Beleid  (IB)/Projecten/2285000066 Africa Maize Yield Gap/SurveyData/TZA/2012/Data"
 
 library(haven)
 library(dplyr)
@@ -27,7 +27,7 @@ location$REGCODE <- as.integer(location$REGCODE)
 
 # match up with the names from the survey (prepared in a seperate file)
 
-ZONEREGDIS <- read.csv(file.path(paste0(dataPath,"/../.."), "ZONEREGDIS.csv"))
+ZONEREGDIS <- read.csv(file.path(paste0(dataPath,"/../../.."), "Other/Spatial/TZA/ZONEREGDIS.csv"))
 
 # join with household identifications
 
@@ -124,6 +124,9 @@ oput$hybrd <- ifelse(oput$hybrd %in% 1, 1, 0)
 oput$zaocode <- as.integer(oput$zaocode)
 oput$harv_area2 <- as_factor(oput$harv_area2)
 oput$harv_area3 <- toupper(as_factor(oput$harv_area3))
+
+# harv area is in acres -> change to hectares
+oput$harv_area <- oput$harv_area*0.404686
 
 # -------------------------------------
 # create dummy variables for crop groups
@@ -350,10 +353,7 @@ rm("LR", "SR", "lvstock_x", "lvstock_y", "OTHER", "PIGS", "POULTRY")
 ############### GEO ###################
 #######################################
 
-geo12 <- read_dta(file.path(dataPath, "HouseholdGeovars_Y3.dta")) %>%
-  select(y3_hhid, lon=lon_dd_mod, lat=lat_dd_mod, dist2Rd=dist01,
-         dist2town=dist02, dist2market=dist03, dist2HQ=dist05, avgTemp=clim01,
-         avgpPrecip=clim03)
+geo12 <- readRDS(file.path(dataPath, "../../../Other/Spatial/TZA/TZA_geo_2012.rds"))
 
 #######################################
 ############### AREAs #################
@@ -367,9 +367,10 @@ areas$y3_hhid <- as.character(areas$y3_hhid)
 areas$plotnum <- as.character(areas$plotnum)
 areas$area_gps <- ifelse(areas$area_gps %in% 0, NA, areas$area_gps)
 
-# 2012 areas are in acres, change to hecacres in line
+# 2012 areas are in acres, change to hectares in line
 # with the 2010 data
 areas$area_gps <- areas$area_gps*0.404686 # from wikipedia
+areas$area_farmer <- areas$area_farmer*0.404686
 
 # plot ownership
 own <- read_dta(file.path(dataPath, "AG_SEC_3A.dta")) %>%
@@ -439,7 +440,7 @@ TZA2012 <- mutate(TZA2012,
                   asset=value
 )
 
-TZA2012 <- select(TZA2012, -qty, -value)
+TZA2012 <- select(TZA2012, -value) %>% rename(crop_qty_harv = qty)
 
 # add and rename final variables
 TZA2012 <- mutate(TZA2012, surveyyear=2012) %>% rename(hhid2012=y3_hhid)
