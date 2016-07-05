@@ -117,10 +117,7 @@ oput <- read_dta(file.path(dataPath, "AG_SEC_4A.dta")) %>%
          harv_area3=ag4a_23, qty=ag4a_28, valu=ag4a_29,
          hybrd=ag4a_08)
 
-oput$one_crop <- ifelse(oput$one_crop %in% 1, 1, 0)
 oput$crop_share <- as_factor(oput$crop_share)
-oput$inter_crop <- ifelse(oput$inter_crop %in% 1, 1, 0)
-oput$hybrd <- ifelse(oput$hybrd %in% 1, 1, 0)
 oput$zaocode <- as.integer(oput$zaocode)
 oput$harv_area2 <- as_factor(oput$harv_area2)
 oput$harv_area3 <- toupper(as_factor(oput$harv_area3))
@@ -177,10 +174,6 @@ plot$zaocode <- as.integer(plot$zaocode)
 plot$soil <- factor(plot$soil, levels=c(1,2,3,4), labels=c("Sandy", "Loam", "Clay", "Other"))
 plot$slope_farmer <- factor(plot$slope_farmer, levels=c(1,2,3,4), labels=c("Flat bottom", "Flat top", "Slightly sloped", "Very steep"))
 plot$title <- as.numeric(as_factor(plot$title))
-plot$title <- ifelse(plot$title %in% c(1:10), 1, 0)
-plot$irrig <- ifelse(plot$irrig %in% 1, 1, 0)
-plot$manure <- ifelse(plot$manure %in% 1, 1, 0)
-plot$pest <- ifelse(plot$pest %in% 1, 1, 0)
 plot$pest_q_unit <- as_factor(plot$pest_q_unit)
 
 plot$pest_q <- ifelse(plot$pest_q_unit %in% c("LITRE", "KG"), plot$pest_q,
@@ -391,8 +384,6 @@ tc <- read_dta(file.path(dataPath, "AG_SEC_5A.dta")) %>%
   select(y3_hhid, zaocode, trans=ag5a_18, trans_dist=ag5a_19, trans_cost=ag5a_22)
 tc$zaocode <- as.integer(tc$zaocode)
 
-tc$trans <- ifelse(tc$trans %in% 1, 1, 0)
-
 #######################################
 ############ PANEL KEY ################
 #######################################
@@ -424,6 +415,24 @@ TZA2012 <- left_join(TZA2012, plot); rm(plot)
 TZA2012 <- left_join(TZA2012, tc); rm(tc)
 TZA2012 <- left_join(TZA2012, lab); rm(lab)
 TZA2012 <- left_join(TZA2012, areas); rm(areas)
+
+# -------------------------------------
+# For some questions respondents answered
+# NA, it is not certain how these responses
+# should be treated. Often we assume that
+# an NA is equivalent to NO/0
+# -------------------------------------
+
+TZA2012$SACCO <- ifelse(TZA2012$SACCO %in% 1, 1, 0) # assume NA -> no SACCO
+TZA2012$death <- ifelse(TZA2012$death %in% 1, 1, 0) # assume NA -> no death
+TZA2012$one_crop <- ifelse(TZA2012$one_crop %in% 1, 1, 0) # assume NA -> no crops 
+TZA2012$inter_crop <- ifelse(TZA2012$inter_crop %in% 1, 1, 0) # assume NA -> no intercropping
+TZA2012$hybrd <- ifelse(TZA2012$hybrd %in% 2, 1, 0) # assume NA -> no hybrid seeds
+TZA2012$title <- ifelse(TZA2012$title %in% c(1:10), 1, 0) # assume NA -> no title
+TZA2012$irrig <- ifelse(TZA2012$irrig %in% 1, 1, 0) # assume NA -> no irrigation
+TZA2012$manure <- ifelse(TZA2012$manure %in% 1, 1, 0) # assume NA -> no manure
+TZA2012$pest <- ifelse(TZA2012$pest %in% 1, 1, 0) # assume NA -> no pesticide
+TZA2012$trans <- ifelse(TZA2012$trans %in% 1, 1, 0) # assume NA -> no transportation for crop
 
 # -------------------------------------
 # Make some new variables

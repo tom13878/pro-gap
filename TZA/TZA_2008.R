@@ -411,9 +411,9 @@ TZA2008 <- left_join(TZA2008, land); rm(land)
 
 TZA2008$SACCO <- ifelse(TZA2008$SACCO %in% 1, 1, 0) # assume NA -> no SACCO
 TZA2008$death <- ifelse(TZA2008$death %in% 1, 1, 0) # assume NA -> no death
-TZA2008$one_crop <- ifelse(TZA2008$one_crop %in% 1, 1, 0)
-TZA2008$inter_crop <- ifelse(TZA2008$inter_crop %in% 1, 1, 0)
-TZA2008$hybrd <- ifelse(TZA2008$hybrd %in% 2, 1, 0)
+TZA2008$one_crop <- ifelse(TZA2008$one_crop %in% 1, 1, 0) # assume NA -> no crops 
+TZA2008$inter_crop <- ifelse(TZA2008$inter_crop %in% 1, 1, 0) # assume NA -> no intercropping
+TZA2008$hybrd <- ifelse(TZA2008$hybrd %in% 2, 1, 0) # assume NA -> no hybrid seeds
 TZA2008$title <- ifelse(TZA2008$title %in% 1, 1, 0) # assume NA -> no title
 TZA2008$irrig <- ifelse(TZA2008$irrig %in% 1, 1, 0) # assume NA -> no irrigation
 TZA2008$manure <- ifelse(TZA2008$manure %in% 1, 1, 0) # assume NA -> no manure
