@@ -91,7 +91,7 @@ HH12 <- left_join(HH12, HH12_x); rm(HH12_x)
 
 death <- read_dta(file.path(dataPath, "HH_SEC_S.dta")) 
 death$personid <- zap_empty(death$personid)
-death <- transmute(death, y3_hhid, death=ifelse(!is.na(personid), 1, 0))
+death <- unique(transmute(death, y3_hhid, death=ifelse(!is.na(personid), 1, 0)))
 
 # -------------------------------------
 # membership to a credit group
@@ -99,7 +99,7 @@ death <- transmute(death, y3_hhid, death=ifelse(!is.na(personid), 1, 0))
 
 credit <- read_dta(file.path(dataPath, "HH_SEC_O2.dta")) 
 credit$personid <- zap_empty(credit$personid)
-credit <- transmute(credit, y3_hhid, SACCO=ifelse(!is.na(personid), 1, 0))
+credit <- unique(transmute(credit, y3_hhid, SACCO=ifelse(!is.na(personid), 1, 0)))
 
 HH12 <- left_join(HH12, death) 
 HH12 <- left_join(HH12, credit) 
@@ -403,7 +403,6 @@ key$y3_hhid <- zap_empty(key$y3_hhid)
 
 TZA2012 <- left_join(location, HH12); rm(location); rm(HH12)
 TZA2012 <- left_join(TZA2012, key); rm(key)
-TZA2012 <- left_join(TZA2012, geo12); rm(geo12)
 TZA2012 <- left_join(TZA2012, implmt); rm(implmt)
 TZA2012 <- left_join(TZA2012, areaTotal); rm(areaTotal)
 TZA2012 <- left_join(TZA2012, lvstock); rm(lvstock)
@@ -415,6 +414,8 @@ TZA2012 <- left_join(TZA2012, plot); rm(plot)
 TZA2012 <- left_join(TZA2012, tc); rm(tc)
 TZA2012 <- left_join(TZA2012, lab); rm(lab)
 TZA2012 <- left_join(TZA2012, areas); rm(areas)
+TZA2012 <- left_join(TZA2012, geo12); rm(geo12)
+
 
 # -------------------------------------
 # For some questions respondents answered
@@ -448,6 +449,22 @@ TZA2012 <- mutate(TZA2012,
                   assetph=value/area_tot,
                   asset=value
 )
+
+# there are three possible yield variables. 
+# that can be created for the last two waves of data. 
+# 1. yld: above uses the full gps areas as denominator
+# 2. yld2: uses harvested area as denominator
+# 3. yld3: Uses relatve harvest area to correct gps area
+TZA2012$area_farmer[TZA2012$area_farmer %in% 0] <- NA
+TZA2012$harv_area[TZA2012$harv_area %in% 0] <- NA
+
+# make a new yield called yld2 based on harvested area
+TZA2012$yld2 <- TZA2012$qty/TZA2012$harv_area
+
+# make a new yield called yld3 based on relative share
+TZA2012$relative_share <- (TZA2012$harv_area/TZA2012$area_farmer) 
+TZA2012$relative_area <- TZA2012$relative_share * TZA2012$area_gps 
+TZA2012$yld3 <- TZA2012$qty/TZA2012$relative_area
 
 TZA2012 <- select(TZA2012, -value) %>% rename(crop_qty_harv = qty)
 
