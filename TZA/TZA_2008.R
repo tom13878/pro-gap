@@ -158,7 +158,7 @@ rm(list=c("legumes", "cashCropNPerm", "cashCropsPerm",
 #######################################
 
 plot <- read_dta(file.path(dataPath, "/TZNPS1AGDTA_E/SEC_3A.dta")) %>%
-  select(hhid, plotnum, zaocode=s3aq5code, soil=s3aq7, slope_farmer=s3aq14, irrig=s3aq15, title=s3aq25,
+  select(hhid, plotnum, main_crop=s3aq5code, soil=s3aq7, slope_farmer=s3aq14, irrig=s3aq15, title=s3aq25,
                 manure=s3aq37, pest=s3aq49, pest_q=s3aq51_amount, pest_q_unit=s3aq51_measure, fallow_year=s3aq19, fallow=s3aq20)
 
 plot$zaocode <- as.integer(plot$zaocode)
@@ -396,8 +396,8 @@ TZA2008 <- left_join(TZA2008, lvstock); rm(lvstock)
 
 # joins at the plot level (hhid, plotnum)
 
-TZA2008 <- left_join(TZA2008, oput); rm(oput)
 TZA2008 <- left_join(TZA2008, plot); rm(plot)
+TZA2008 <- left_join(TZA2008, oput); rm(oput)
 TZA2008 <- left_join(TZA2008, tc); rm(tc)
 TZA2008 <- left_join(TZA2008, lab); rm(lab)
 TZA2008 <- left_join(TZA2008, land); rm(land)
@@ -417,6 +417,8 @@ TZA2008$hybrd <- ifelse(TZA2008$hybrd %in% 2, 1, 0) # assume NA -> no hybrid see
 TZA2008$title <- ifelse(TZA2008$title %in% 1, 1, 0) # assume NA -> no title
 TZA2008$irrig <- ifelse(TZA2008$irrig %in% 1, 1, 0) # assume NA -> no irrigation
 TZA2008$manure <- ifelse(TZA2008$manure %in% 1, 1, 0) # assume NA -> no manure
+TZA2008$N <- ifelse(is.na(TZA2008$N), 0, TZA2008$N) # assume NA -> no nitrogen
+TZA2008$P <- ifelse(is.na(TZA2008$P), 0, TZA2008$P) # assume NA -> no Phosphorous
 TZA2008$pest <- ifelse(TZA2008$pest %in% 1, 1, 0) # assume NA -> no pesticide
 TZA2008$trans <- ifelse(TZA2008$trans %in% 1, 1, 0) # assume NA -> no transportation for crop
 

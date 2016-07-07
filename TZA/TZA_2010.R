@@ -165,7 +165,7 @@ rm(list=c("legumes", "cashCropNPerm", "cashCropsPerm",
 #######################################
 
 plot <- read_dta(file.path(dataPath, "TZNPS2AGRDTA/AG_SEC3A.dta")) %>%
-  dplyr::select(y2_hhid, plotnum, zaocode, soil=ag3a_09, slope_farmer=ag3a_16, irrig=ag3a_17, title=ag3a_27,
+  dplyr::select(y2_hhid, plotnum, main_crop=zaocode, soil=ag3a_09, slope_farmer=ag3a_16, irrig=ag3a_17, title=ag3a_27,
                 manure=ag3a_39, pest=ag3a_58, pest_q=ag3a_60_1, pest_q_unit=ag3a_60_2, fallow_year=ag3a_21, fallow=ag3a_22)
 
 plot$maize <- ifelse(plot$zaocode %in% 11, 1, 0)
@@ -255,9 +255,7 @@ fertmix <- filter(fert, vouch %in% c(0,1)) %>%
 
 plot <- left_join(plot, fertmix) %>%
   left_join(., fertnosub) %>%
-  left_join(., fertsub) %>%
-  mutate(N = ifelse(is.na(N), 0, N),
-         P = ifelse(is.na(P), 0, P))
+  left_join(., fertsub)
 
 rm(list=c("fert1", "fert2", "fert", "fertsub", "fertnosub", "fertmix", "conv"))
 
@@ -404,18 +402,18 @@ key$hhid2012 <- zap_empty(key$hhid2012)
 
 TZA2010 <- left_join(location, HH10); rm(location); rm(HH10)
 TZA2010 <- left_join(TZA2010, key); rm(key)
-TZA2010 <- left_join(TZA2010, geo10); rm(geo10)
 TZA2010 <- left_join(TZA2010, implmt); rm(implmt)
 TZA2010 <- left_join(TZA2010, areaTotal); rm(areaTotal)
 TZA2010 <- left_join(TZA2010, lvstock); rm(lvstock)
 
 # joins at the plot level
 
-TZA2010 <- left_join(TZA2010, oput); rm(oput)
 TZA2010 <- left_join(TZA2010, plot); rm(plot)
+TZA2010 <- left_join(TZA2010, oput); rm(oput)
 TZA2010 <- left_join(TZA2010, tc); rm(tc)
 TZA2010 <- left_join(TZA2010, lab); rm(lab)
 TZA2010 <- left_join(TZA2010, areas); rm(areas)
+TZA2010 <- left_join(TZA2010, geo10); rm(geo10)
 
 # -------------------------------------
 # For some questions respondents answered
@@ -432,6 +430,8 @@ TZA2010$hybrd <- ifelse(TZA2010$hybrd %in% 2, 1, 0) # assume NA -> no hybrid see
 TZA2010$title <- ifelse(TZA2010$title %in% 1, 1, 0) # assume NA -> no title
 TZA2010$irrig <- ifelse(TZA2010$irrig %in% 1, 1, 0) # assume NA -> no irrigation
 TZA2010$manure <- ifelse(TZA2010$manure %in% 1, 1, 0) # assume NA -> no manure
+TZA2010$N <- ifelse(is.na(TZA2010$N), 0, TZA2010$N) # assume NA -> no nitrogen
+TZA2010$P <- ifelse(is.na(TZA2010$P), 0, TZA2010$P) # assume NA -> no Phosphorous
 TZA2010$pest <- ifelse(TZA2010$pest %in% 1, 1, 0) # assume NA -> no pesticide
 TZA2010$trans <- ifelse(TZA2010$trans %in% 1, 1, 0) # assume NA -> no transportation for crop
 
@@ -448,6 +448,22 @@ TZA2010 <- mutate(TZA2010,
                   pest_q=pest_q/area_gps,
                   assetph=value/area_tot
 )
+
+# there are three possible yield variables. 
+# that can be created for the last two waves of data. 
+# 1. yld: above uses the full gps areas as denominator
+# 2. yld2: uses harvested area as denominator
+# 3. yld3: Uses relatve harvest area to correct gps area
+TZA2010$area_farmer[TZA2010$area_farmer %in% 0] <- NA
+TZA2010$harv_area[TZA2010$harv_area %in% 0] <- NA
+
+# make a new yield called yld2 based on harvested area
+TZA2010$yld2 <- TZA2010$qty/TZA2010$harv_area
+
+# make a new yield called yld3 based on relative share
+TZA2010$relative_share <- (TZA2010$harv_area/TZA2010$area_farmer) 
+TZA2010$relative_area <- TZA2010$relative_share * TZA2010$area_gps 
+TZA2010$yld3 <- TZA2010$qty/TZA2010$relative_area
 
 # -------------------------------------
 # Inflate 2011 prices to 2013 prices: assets, fertilizer and maize prices
