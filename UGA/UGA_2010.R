@@ -6,7 +6,7 @@
 dataPath <- "C:/Users/Tomas/Documents/LEI/data/UGA/2010_11/Data"
 
 # LEI server dataPath
-# dataPath <- ""
+# dataPath <- "W:/LEI/Internationaal Beleid  (IB)/Projecten/2285000066 Africa Maize Yield Gap/SurveyData/UGA/2010_11/Data/"
 
 library(haven)
 library(reshape2)
@@ -141,8 +141,8 @@ oput <- left_join(oput, oput_x); rm(oput_x)
 oput <- oput[! is.na(oput$qty) & !oput$qty %in% 0, ]
 oput$qty_sold[oput$qty_sold %in% 0] <- NA
 oput$crop_price <- oput$value/oput$qty_sold
-oput$value <- NULL 
-
+oput$value <- NULL
+oput <- unique(oput) # remove duplicates
 rm(list=c("legumes", "cashCropNPerm", "cashCropsPerm",
           "CTR", "fruit", "vegetables"))
 
@@ -295,7 +295,7 @@ rm("LR", "lvstock_large",
 
 # joins at the household level (HHID)
 
-UGA2010 <- left_join(location, HH10); rm(location); rm(HH10)
+UGA2010 <- left_join(HH10, location); rm(location); rm(HH10)
 UGA2010 <- left_join(UGA2010, geo10); rm(geo10)
 UGA2010 <- left_join(UGA2010, asset); rm(asset)
 UGA2010 <- left_join(UGA2010, lvstock); rm(lvstock)
@@ -320,6 +320,16 @@ UGA2010 <- mutate(UGA2010,
                   lab=lab/area_gps,
                   assetph=asset/area_tot)
 
+# many households report not having owned
+# any livestock. This is likely because
+# they are urban dwellers, or just not
+# livestock farmers. In this case set livestock
+# values to 0
+
+lvstock <- c("LR", "OTHER_", "BULLS", "CALVES", "COWS", "DONKEYS",
+             "EXOTIC/CROSS", "HEIFER", "INDIGENOUS", "MULES-/-HORSES","OXEN")
+UGA2010[, lvstock][is.na(UGA2010[, lvstock])] <- 0;rm(lvstock)
+
 # -------------------------------------
 # remove some variables which may be of
 # use later on but which are not 
@@ -336,7 +346,7 @@ UGA2010 <- mutate(UGA2010,
 # -------------------------------------
 
 inflation <- read.csv(file.path(paste0(dataPath,"/../../.."), "Other/Inflation/inflation.csv"))
-rate2011 <- inflation$inflation[inflation$code=="UG" & inflation$year==2011]
+rate2011 <- inflation$inflation[inflation$code=="UG" & inflation$year==2011]/100
 inflate <- rate2011
 
 UGA2010 <- mutate(UGA2010,

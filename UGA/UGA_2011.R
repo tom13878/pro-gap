@@ -6,7 +6,7 @@
 dataPath <- "C:/Users/Tomas/Documents/LEI/data/UGA/2011_12/Data"
 
 # LEI server dataPath
-# dataPath <- ""
+# dataPath <- "W:/LEI/Internationaal Beleid  (IB)/Projecten/2285000066 Africa Maize Yield Gap/SurveyData/UGA/2011_12/Data/"
 
 library(haven)
 library(reshape2)
@@ -144,7 +144,7 @@ oput <- oput[! is.na(oput$qty) & !oput$qty %in% 0, ]
 oput$qty_sold[oput$qty_sold %in% 0] <- NA
 oput$crop_price <- oput$value/oput$qty_sold
 oput$value <- NULL 
-
+oput <- unique(oput) # remove duplicates
 rm(list=c("legumes", "cashCropNPerm", "cashCropsPerm",
           "CTR", "fruit", "vegetables"))
 
@@ -192,6 +192,7 @@ crop$HHID <- as.character(crop$HHID)
 crop$crop_code <- as.integer(crop$crop_code)
 crop$inter_crop <- ifelse(crop$inter_crop %in% 1, 1, 0)
 crop$hybrd <- ifelse(crop$hybrd %in% 2, 1, 0)
+crop <- unique(crop)
 
 parcel <- read_dta(file.path(dataPath, "AGSEC2A.dta")) %>% 
   select(HHID, parcel_id=parcelID, soil=a2aq17, irrig=a2aq20,
@@ -302,7 +303,7 @@ rm("LR", "lvstock_large",
 
 # joins at the household level (HHID)
 
-UGA2011 <- left_join(location, HH11); rm(location); rm(HH11)
+UGA2011 <- left_join(HH11, location); rm(location); rm(HH11)
 UGA2011 <- left_join(UGA2011, geo11); rm(geo11)
 UGA2011 <- left_join(UGA2011, asset); rm(asset)
 UGA2011 <- left_join(UGA2011, lvstock); rm(lvstock)
@@ -317,8 +318,6 @@ UGA2011 <- left_join(UGA2011, oput); rm(oput)
 UGA2011 <- left_join(UGA2011, plot); rm(plot)
 UGA2011 <- left_join(UGA2011, crop); rm(crop)
 
-rm(list=ls()[!ls() %in% "UGA2011"])
-
 # -------------------------------------
 # Make some new variables
 # -------------------------------------
@@ -328,6 +327,18 @@ UGA2011 <- mutate(UGA2011,
                   yld=qty/area_gps,
                   lab=lab/area_gps,
                   assetph=asset/area_tot)
+
+# many households report not having owned
+# any livestock. This is likely because
+# they are urban dwellers, or just not
+# livestock farmers. In this case set livestock
+# values to 0
+
+lvstock <- c("LR", "OTHER_", "EXOTIC-BULLS", "EXOTIC-CALVES", "EXOTIC-COWS",
+             "EXOTIC-OXEN", "INDIGENOUS-BULLS", "INDIGENOUS-CALVES",
+             "INDIGENOUS-COWS", "INDIGENOUS-DONKEYS", "INDIGENOUS-HEIFER",
+             "INDIGENOUS-MULES/HORSES", "INDIGENOUS-OXEN")
+UGA2011[, lvstock][is.na(UGA2011[, lvstock])] <- 0;rm(lvstock)
 
 # -------------------------------------
 # remove some variables which may be of

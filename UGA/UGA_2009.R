@@ -5,8 +5,8 @@
 # Tom
 dataPath <- "C:/Users/Tomas/Documents/LEI/data/UGA/2009_10/Data"
 
-# LEI server dataPath
-# dataPath <- ""
+# LEI Path
+# dataPath <- "W:/LEI/Internationaal Beleid  (IB)/Projecten/2285000066 Africa Maize Yield Gap/SurveyData/UGA/2009_10/Data/"
 
 library(haven)
 library(reshape2)
@@ -22,8 +22,18 @@ location <- read_dta(file.path(dataPath, "GSEC1.dta")) %>%
   select(HHID, REGCODE=region, rural=urban, DISTCODE=h1aq1)
 location$rural <- ifelse(location$rural %in% 0, 1, 0)
 location$REGNAME <- toupper(as_factor(location$REGCODE))
-location$REGNAME <- gsub(" without Kampala", "", location$REGNAME)
+location$REGNAME <- gsub(" WITHOUT KAMPALA", "", location$REGNAME)
 location$REGCODE <- as.numeric(location$REGCODE)
+
+# in the first wave the district names
+# are not available in the data. These are
+# contained in an external file called
+# reg_dis_lsmsUGA.csv and were copied from
+# the codebook
+REGDIS <- read.csv(file.path(paste0(dataPath,"/../../.."), "Other/Spatial/UGA/reg_dis_lsmsUGA.csv"))
+REGDIS <- select(REGDIS, REGCODE=LSMSREGCODE, DISTNAME=LSMSDISTNAME, DISTCODE=LSMSDISTCODE)
+
+location <- left_join(location, REGDIS)
 
 #######################################
 ########### SOCIO/ECONOMIC ############
@@ -145,7 +155,7 @@ oput$qty_sold[oput$qty_sold %in% 0] <- NA
 oput$crop_price <- oput$value/oput$qty_sold
 oput$value <- NULL 
 oput$parcel_id <- as.character(oput$parcel_id)
-
+oput <- unique(oput) # remove duplicates
 rm(list=c("legumes", "cashCropNPerm", "cashCropsPerm",
           "CTR", "fruit", "vegetables"))
 
@@ -299,7 +309,7 @@ rm("LR", "SR", "lvstock_small", "lvstock_large",
 
 # joins at the household level (HHID)
 
-UGA2009 <- left_join(location, HH09); rm(location); rm(HH09)
+UGA2009 <- left_join(HH09, location); rm(location); rm(HH09)
 UGA2009 <- left_join(UGA2009, geo09); rm(geo09)
 UGA2009 <- left_join(UGA2009, asset); rm(asset)
 UGA2009 <- left_join(UGA2009, lvstock); rm(lvstock)
@@ -314,7 +324,7 @@ UGA2009 <- left_join(UGA2009, oput); rm(oput)
 UGA2009 <- left_join(UGA2009, plot); rm(plot)
 
 # -------------------------------------
-# Make some new variables
+# Make some new variables and changes
 # -------------------------------------
 
 # per hectacre
@@ -323,6 +333,19 @@ UGA2009 <- mutate(UGA2009,
                   lab=lab/area_gps,
                   assetph=asset/area_tot
 )
+
+# many households report not having owned
+# any livestock. This is likely because
+# they are urban dwellers, or just not
+# livestock farmers. In this case set livestock
+# values to 0
+
+lvstock <- c("LR", "OTHER_", "PIGS_", "SR", "BULLS-AND-OXEN",
+             "CALVES", "DONKEYS", "FEMALE-GOATS", "FEMALE-SHEEP",
+             "HEIFER-AND-COWS", "MALE-GOATS", "MALE-SHEEP", "MULES-/-HORSES",
+             "PIGS")
+UGA2009[, lvstock][is.na(UGA2009[, lvstock])] <- 0;rm(lvstock)
+
 
 # -------------------------------------
 # remove some variables which may be of
@@ -347,15 +370,15 @@ UGA2009 <- select(UGA2009, -yob,
 # http://data.worldbank.org/indicator/FP.CPI.TOTL.ZG/countries/TZ?display=graph
 # -------------------------------------
 
-inflation <- read.csv(file.path(paste0(dataPath,"/../../.."), "inflation.csv"))
+inflation <- read.csv(file.path(paste0(dataPath,"/../../.."), "Other/Inflation/inflation.csv"))
 rate2010 <- inflation$inflation[inflation$code=="UG" & inflation$year==2010]/100
 rate2011 <- inflation$inflation[inflation$code=="UG" & inflation$year==2011]/100
-inflate <- (1 + rate2011)*(1 + rate2013)
+inflate <- (1 + rate2011)*(1 + rate2011)
 
 UGA2009 <- mutate(UGA2009,
                   asset = asset*inflate,
                   assetph = assetph*inflate,
-                  crop_price = crop_price*inflate,)
+                  crop_price = crop_price*inflate)
 
 # add final variables
 
