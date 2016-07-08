@@ -161,7 +161,7 @@ plot <- read_dta(file.path(dataPath, "/TZNPS1AGDTA_E/SEC_3A.dta")) %>%
   select(hhid, plotnum, main_crop=s3aq5code, soil=s3aq7, slope_farmer=s3aq14, irrig=s3aq15, title=s3aq25,
                 manure=s3aq37, pest=s3aq49, pest_q=s3aq51_amount, pest_q_unit=s3aq51_measure, fallow_year=s3aq19, fallow=s3aq20)
 
-plot$zaocode <- as.integer(plot$zaocode)
+plot$main_crop <- as.integer(plot$main_crop)
 plot$soil <- factor(plot$soil, levels=c(1,2,3,4), labels=c("Sandy", "Loam", "Clay", "Other"))
 plot$slope_farmer <- factor(plot$slope_farmer, levels=c(1,2,3,4), labels=c("Flat bottom", "Flat top", "Slightly sloped", "Very steep"))
 plot$pest_q_unit <- as_factor(plot$pest_q_unit)
