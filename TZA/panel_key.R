@@ -121,6 +121,6 @@ bad2012 <- group_by(KEY, hhid2012) %>% summarise(n=n()) %>% filter(n > 1)
 bad <- KEY$hhid2008 %in% bad2008$hhid2008 | KEY$hhid2010 %in% bad2010$hhid2010 | KEY$hhid2012 %in% bad2012$hhid2012
 KEY <- KEY[!bad,]
 
-rm(list=ls()[!ls() %in% c("KEY")])
-dataPath <- "C:/Users/Tomas/Documents/LEI/"
-             
+rm("bad", "bad2008", "bad2010", "bad2012", "dataPath", "diff_loc",
+   "key2010", "key2012", "keyAll", "keyHH")
+
