@@ -2,12 +2,13 @@
 ########## TANZANIA 2010-11 ###########
 #######################################
 
-# Tom
-dataPath <- "C:/Users/Tomas/Documents/LEI/data/TZA/2010/Data"
+if(Sys.info()["user"] == "Tomas"){
+  dataPath <- "C:/Users/Tomas/Documents/LEI/data/TZA/2010/Data"
+} else {
+  dataPath <- "N:/Internationaal Beleid  (IB)/Projecten/2285000066 Africa Maize Yield Gap/SurveyData/TZA/2010/Data"
+}
 
-# LEI Path
-# dataPath <- "W:/LEI/Internationaal Beleid  (IB)/Projecten/2285000066 Africa Maize Yield Gap/SurveyData/TZA/2010/Data"
-
+# load packages
 library(haven)
 library(stringr)
 library(reshape2)
@@ -109,14 +110,14 @@ rm(ed, credit, death)
 #######################################
 
 oput <- read_dta(file.path(dataPath, "TZNPS2AGRDTA/AG_SEC4A.dta")) %>%
-  select(y2_hhid, plotnum, zaocode, one_crop=ag4a_01,
+  select(y2_hhid, plotnum, crop_code=zaocode, one_crop=ag4a_01,
          crop_share=ag4a_02, inter_crop=ag4a_04,
          harv_area=ag4a_08, harv_area2=ag4a_09,
-         harv_area3=ag4a_10, qty=ag4a_15, valu=ag4a_16,
+         harv_area3=ag4a_10, crop_qty_harv=ag4a_15, valu=ag4a_16,
          hybrd=ag4a_23)
 
 oput$crop_share <- as_factor(oput$crop_share)
-oput$zaocode <- as.integer(oput$zaocode)
+oput$crop_code <- as.integer(oput$crop_code)
 oput$harv_area2 <- as_factor(oput$harv_area2)
 oput$harv_area3 <- toupper(as_factor(oput$harv_area3))
 
@@ -138,23 +139,23 @@ vegetables <- c(86:96, 100, 101)
 legumes <- c(31, 32, 33, 35, 36, 37, 41, 42, 43, 47, 48)
 
 oput_x <- group_by(oput, y2_hhid, plotnum) %>%
-  summarise(crop_count=length(unique(zaocode[!is.na(zaocode)])),
-            fruit=ifelse(any(zaocode %in% fruit), 1, 0),
-            cashCropsPerm=ifelse(any(zaocode %in% cashCropsPerm), 1, 0),
-            CTR=ifelse(any(zaocode %in% CTR), 1, 0),
-            cashCropNPerm=ifelse(any(zaocode %in% cashCropNPerm), 1, 0),
-            vegetables=ifelse(any(zaocode %in% vegetables), 1, 0),
-            legume=ifelse(any(zaocode %in% legumes), 1, 0),
-            maize_=ifelse(any(zaocode %in% 11), 1, 0), # maize has crop code 11
-            wheat=ifelse(any(zaocode %in% 16), 1, 0)) # wheat has crop code 16
+  summarise(crop_count=length(unique(crop_code[!is.na(crop_code)])),
+            fruit=ifelse(any(crop_code %in% fruit), 1, 0),
+            cashCropsPerm=ifelse(any(crop_code %in% cashCropsPerm), 1, 0),
+            CTR=ifelse(any(crop_code %in% CTR), 1, 0),
+            cashCropNPerm=ifelse(any(crop_code %in% cashCropNPerm), 1, 0),
+            vegetables=ifelse(any(crop_code %in% vegetables), 1, 0),
+            legume=ifelse(any(crop_code %in% legumes), 1, 0),
+            maize_=ifelse(any(crop_code %in% 11), 1, 0), # maize has crop code 11
+            wheat=ifelse(any(crop_code %in% 16), 1, 0)) # wheat has crop code 16
 
 oput <- left_join(oput, oput_x); rm(oput_x)
 
 # in the maize farmers, exclude farmers
 # who responded they produced zero crop, or did not respond (NA)
 
-oput <- oput[! is.na(oput$qty) & !oput$qty %in% 0, ]
-oput$crop_price <- oput$valu/oput$qty
+oput <- oput[! is.na(oput$crop_qty_harv) & !oput$crop_qty_harv %in% 0, ]
+oput$crop_price <- oput$valu/oput$crop_qty_harv
 oput$valu <- NULL 
 
 rm(list=c("legumes", "cashCropNPerm", "cashCropsPerm",
@@ -328,7 +329,7 @@ implmt <- read_dta(file.path(dataPath, "TZNPS2AGRDTA/AG_SEC11.dta")) %>%
   filter(!qty %in% 0, !is.na(qty), !valu %in% 0, !is.na(valu)) %>%
   transmute(y2_hhid, valu=qty*valu) %>%
   group_by(y2_hhid) %>%
-  summarise(value=sum(valu))
+  summarise(asset=sum(valu))
 
 # -------------------------------------
 # Livestock assets
@@ -381,7 +382,7 @@ rm("LR", "SR", "lvstock_x", "lvstock_y", "OTHER", "PIGS", "POULTRY")
 #######################################
 
 tc <- read_dta(file.path(dataPath, "TZNPS2AGRDTA/AG_SEC5a.dta")) %>% 
-  dplyr::select(y2_hhid, zaocode, trans=ag5a_15, trans_dist=ag5a_16, trans_cost=ag5a_19)
+  dplyr::select(y2_hhid, crop_code=zaocode, trans=ag5a_15, trans_dist=ag5a_16, trans_cost=ag5a_19)
 
 #######################################
 ############ PANEL KEY ################
@@ -390,8 +391,13 @@ tc <- read_dta(file.path(dataPath, "TZNPS2AGRDTA/AG_SEC5a.dta")) %>%
 # key for joing individuals and households across years
 key <- read_dta(file.path(dataPath, "../../2012/Data/NPSY3.PANEL.KEY.dta")) %>%
   select(-UPI3) %>% rename(hhid2008 = y1_hhid, hhid2012=y3_hhid)
-key$hhid2008 <- zap_empty(key$hhid2008)
-key$y2_hhid <- zap_empty(key$y2_hhid)
+
+bad <- is.na(as.numeric(key$hhid2008))
+key$hhid2008[bad] <- NA
+
+bad <- is.na(as.numeric(key$y2_hhid))
+key$y2_hhid[bad] <- NA
+
 key$hhid2012 <- zap_empty(key$hhid2012)
 
 #######################################
@@ -408,90 +414,11 @@ TZA2010 <- left_join(TZA2010, lvstock); rm(lvstock)
 
 # joins at the plot level
 
+TZA2010 <- left_join(TZA2010, geo10); rm(geo10)
 TZA2010 <- left_join(TZA2010, plot); rm(plot)
 TZA2010 <- left_join(TZA2010, oput); rm(oput)
 TZA2010 <- left_join(TZA2010, tc); rm(tc)
 TZA2010 <- left_join(TZA2010, lab); rm(lab)
 TZA2010 <- left_join(TZA2010, areas); rm(areas)
-TZA2010 <- left_join(TZA2010, geo10); rm(geo10)
 
-# -------------------------------------
-# For some questions respondents answered
-# NA, it is not certain how these responses
-# should be treated. Often we assume that
-# an NA is equivalent to NO/0
-# -------------------------------------
-
-TZA2010$SACCO <- ifelse(TZA2010$SACCO %in% 1, 1, 0) # assume NA -> no SACCO
-TZA2010$death <- ifelse(TZA2010$death %in% 1, 1, 0) # assume NA -> no death
-TZA2010$one_crop <- ifelse(TZA2010$one_crop %in% 1, 1, 0) # assume NA -> no crops 
-TZA2010$inter_crop <- ifelse(TZA2010$inter_crop %in% 1, 1, 0) # assume NA -> no intercropping
-TZA2010$hybrd <- ifelse(TZA2010$hybrd %in% 2, 1, 0) # assume NA -> no hybrid seeds
-TZA2010$title <- ifelse(TZA2010$title %in% 1, 1, 0) # assume NA -> no title
-TZA2010$irrig <- ifelse(TZA2010$irrig %in% 1, 1, 0) # assume NA -> no irrigation
-TZA2010$manure <- ifelse(TZA2010$manure %in% 1, 1, 0) # assume NA -> no manure
-TZA2010$N <- ifelse(is.na(TZA2010$N), 0, TZA2010$N) # assume NA -> no nitrogen
-TZA2010$P <- ifelse(is.na(TZA2010$P), 0, TZA2010$P) # assume NA -> no Phosphorous
-TZA2010$pest <- ifelse(TZA2010$pest %in% 1, 1, 0) # assume NA -> no pesticide
-TZA2010$trans <- ifelse(TZA2010$trans %in% 1, 1, 0) # assume NA -> no transportation for crop
-
-# -------------------------------------
-# Make some new variables
-# -------------------------------------
-
-# per hectacre
-TZA2010 <- mutate(TZA2010,
-                  yld=qty/area_gps,
-                  N=N/area_gps,
-                  P=P/area_gps,
-                  lab=lab/area_gps,
-                  pest_q=pest_q/area_gps,
-                  assetph=value/area_tot
-)
-
-# there are three possible yield variables. 
-# that can be created for the last two waves of data. 
-# 1. yld: above uses the full gps areas as denominator
-# 2. yld2: uses harvested area as denominator
-# 3. yld3: Uses relatve harvest area to correct gps area
-TZA2010$area_farmer[TZA2010$area_farmer %in% 0] <- NA
-TZA2010$harv_area[TZA2010$harv_area %in% 0] <- NA
-
-# make a new yield called yld2 based on harvested area
-TZA2010$yld2 <- TZA2010$qty/TZA2010$harv_area
-
-# make a new yield called yld3 based on relative share
-TZA2010$relative_share <- (TZA2010$harv_area/TZA2010$area_farmer) 
-TZA2010$relative_area <- TZA2010$relative_share * TZA2010$area_gps 
-TZA2010$yld3 <- TZA2010$qty/TZA2010$relative_area
-
-# -------------------------------------
-# Inflate 2011 prices to 2013 prices: assets, fertilizer and maize prices
-# using inflation rate for 2011 and 2013. These years were selected as the main part of the survey takes place in these years.
-# from world bank:
-# http://data.worldbank.org/indicator/FP.CPI.TOTL.ZG/countries/TZ?display=graph
-# -------------------------------------
-
-inflation <- read.csv(file.path(paste0(dataPath,"/../../.."), "Other/Inflation/inflation.csv"))
-rate2011 <- inflation$inflation[inflation$code=="TZ" & inflation$year==2011]/100
-rate2012 <- inflation$inflation[inflation$code=="TZ" & inflation$year==2012]/100
-rate2013 <- inflation$inflation[inflation$code=="TZ" & inflation$year==2013]/100
-inflate <- (1 + rate2011)*(1 + rate2013)
-
-TZA2010 <- mutate(TZA2010,
-                  asset = value*inflate,
-                  assetph = assetph*inflate,
-                  crop_price = crop_price*inflate,
-                  WPn = WPn*inflate,
-                  WPnnosub = WPnnosub*inflate,
-                  WPnsub = WPnsub*inflate)
-
-TZA2010 <- select(TZA2010, -value) %>% rename(crop_qty_harv = qty)
-
-# add final variables
-
-TZA2010<- mutate(TZA2010, surveyyear=2010) %>% rename(hhid2010=y2_hhid)
-
-rm(list=ls()[!ls() %in% c("TZA2010", "dataPath")])
-
-# saveRDS(TZA2010, file.path(dataPath, "/../../TZA2010.rds"))
+rm("bad", "dataPath")
