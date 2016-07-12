@@ -1,0 +1,172 @@
+REGION_CODE,REGION_NAME,DISTRICT_CODE,DISTRICT_NAME
+1,WESTERN,1,Ahanta West
+1,WESTERN,2,Aowin Suaman
+1,WESTERN,3,Bia
+1,WESTERN,4,Bibiani /Anhwiaso/ Bekwai
+1,WESTERN,5,Ellembele
+1,WESTERN,6,Jomoro
+1,WESTERN,7,Juabeso
+1,WESTERN,8,Mpohor Wassa East
+1,WESTERN,9,Nzema East
+1,WESTERN,10,Prestea-Huni Valley
+1,WESTERN,11,Sefwi Akontobra
+1,WESTERN,12,Sefwi Wiawso
+1,WESTERN,13,Sekondi Takoradi
+1,WESTERN,14,Shama
+1,WESTERN,15,Tarkwa Nsuaem
+1,WESTERN,16,Wassa Amenfi East
+1,WESTERN,17,Wassa Amenfi West
+2,CENTRAL,18,Abura-Asebu-Kwamankese
+2,CENTRAL,19,Agona East
+2,CENTRAL,20,Agona West
+2,CENTRAL,21,Ajumako/Enyan/Esiam
+2,CENTRAL,22,Asikuma /Odoben/ Brakwa
+2,CENTRAL,23,Assin North
+2,CENTRAL,24,Assin South
+2,CENTRAL,25,Awutu Senya
+2,CENTRAL,26,Cape Coast
+2,CENTRAL,27,Effutu
+2,CENTRAL,28,Gomoa East
+2,CENTRAL,29,Gomoa West
+2,CENTRAL,30,Komenda-Edina-Eguafo-Abirem
+2,CENTRAL,31,Mfantsiman
+2,CENTRAL,32,Twifo/Heman/Lower Denkyira /
+2,CENTRAL,33,Uper Denkyira West
+2,CENTRAL,34,Upper Denkyira East
+3,GREATER ACCRA,35,Accra
+3,GREATER ACCRA,36,Adenta
+3,GREATER ACCRA,37,Ashaiman
+3,GREATER ACCRA,38,Dangbe East
+3,GREATER ACCRA,39,Dangbe West
+3,GREATER ACCRA,40,Ga East
+3,GREATER ACCRA,41,Ga West
+3,GREATER ACCRA,42,Ledzekuku-Krowor
+3,GREATER ACCRA,43,Tema
+3,GREATER ACCRA,44,Weija
+4,VOLTA,45,Adaklu-Anyigbe
+4,VOLTA,46,Akatsi
+4,VOLTA,47,Biakoye
+4,VOLTA,48,Ho
+4,VOLTA,49,Hohoe
+4,VOLTA,50,Jasikan
+4,VOLTA,51,Kadjebi
+4,VOLTA,52,Keta
+4,VOLTA,53,Ketu North
+4,VOLTA,54,Ketu South
+4,VOLTA,55,Kpando
+4,VOLTA,56,Krachi East
+4,VOLTA,57,Krachi West
+4,VOLTA,58,Nkwanta North
+4,VOLTA,59,Nkwanta South
+4,VOLTA,60,North Tongu
+4,VOLTA,61,South Tongu
+4,VOLTA,62,South Dayi
+5,EASTERN,63,Akwapim North
+5,EASTERN,64,Akwapim South
+5,EASTERN,65,Akyemansa
+5,EASTERN,66,Asuogyaman
+5,EASTERN,67,Atiwa
+5,EASTERN,68,Birim Central
+5,EASTERN,69,Birim North
+5,EASTERN,70,Birim South
+5,EASTERN,71,East Akim
+5,EASTERN,72,Fanteakwa
+5,EASTERN,73,Kwabibirem
+5,EASTERN,74,Kwahu East
+5,EASTERN,75,Kwahu North (Afram Plains)
+5,EASTERN,76,Kwahu South
+5,EASTERN,77,Kwahu West
+5,EASTERN,78,Lower Manya Krobo
+5,EASTERN,79,New Juaben
+5,EASTERN,80,Suhum /Kraboa /Coaltar
+5,EASTERN,81,Upper Manya Krobo
+5,EASTERN,82,West Akim
+5,EASTERN,83,Yilo Krobo
+6,ASHANTI,84,Adansi North
+6,ASHANTI,85,Adansi South
+6,ASHANTI,86,Afigya Kwabre
+6,ASHANTI,87,Ahafo Ano North
+6,ASHANTI,88,Ahafo Ano South
+6,ASHANTI,89,Amansi e Central
+6,ASHANTI,90,Amansie East
+6,ASHANTI,91,Amansie West
+6,ASHANTI,92,Asante Akim North
+6,ASHANTI,93,Asante Akim South
+6,ASHANTI,94,Atwima Mponua
+6,ASHANTI,95,Atwima Nwabiagya
+6,ASHANTI,96,Atwima-Kwanwoma
+6,ASHANTI,97,Bekwai
+6,ASHANTI,98,Bosome Freho
+6,ASHANTI,99,Bosomtwe
+6,ASHANTI,100,Ejisu-Juabeng
+6,ASHANTI,101,Ejura Sekyedumase
+6,ASHANTI,102,Kumasi
+6,ASHANTI,103,Kwabre
+6,ASHANTI,104,Mampong
+6,ASHANTI,105,Obuasi
+6,ASHANTI,106,Offinso
+6,ASHANTI,107,Offinso North
+6,ASHANTI,108,Sekyere Afram Plain
+6,ASHANTI,109,Sekyere Central
+6,ASHANTI,110,Sekyere East
+6,ASHANTI,111,Sekyere South
+7,BRONG AHAFO,112,Asunafo North
+7,BRONG AHAFO,113,Asunafo South
+7,BRONG AHAFO,114,Asutifi
+7,BRONG AHAFO,115,Atebubu Amantin
+7,BRONG AHAFO,116,Berekum
+7,BRONG AHAFO,117,Dormaa
+7,BRONG AHAFO,118,Dormaa East
+7,BRONG AHAFO,119,Jaman North
+7,BRONG AHAFO,120,Jaman South
+7,BRONG AHAFO,121,Kintampo North
+7,BRONG AHAFO,122,Kintampo South
+7,BRONG AHAFO,123,Nkoranza North
+7,BRONG AHAFO,124,Nkoranza South
+7,BRONG AHAFO,125,Pru
+7,BRONG AHAFO,126,Sene
+7,BRONG AHAFO,127,Sunyani
+7,BRONG AHAFO,128,Sunyani West
+7,BRONG AHAFO,129,Tain
+7,BRONG AHAFO,130,Tano North
+7,BRONG AHAFO,131,Tano South
+7,BRONG AHAFO,132,Techiman
+7,BRONG AHAFO,133,Wenchi
+8,NORTHERN,134,Bole
+8,NORTHERN,135,Bunkprugu-Yunyoo
+8,NORTHERN,136,Central Gonja
+8,NORTHERN,137,Chereponi
+8,NORTHERN,138,East Gonja
+8,NORTHERN,139,East Mamprusi
+8,NORTHERN,140,Gushiegu
+8,NORTHERN,141,Karaga
+8,NORTHERN,142,Kpandai
+8,NORTHERN,143,Nanumba North
+8,NORTHERN,144,Nanumba South
+8,NORTHERN,145,Saboba
+8,NORTHERN,146,Savelugu Nanton
+8,NORTHERN,147,Sawla-Tuna-Kalba
+8,NORTHERN,148,Tamale
+8,NORTHERN,149,Tolon-Kumbungu
+8,NORTHERN,150,West Gonja
+8,NORTHERN,151,West Mamprusi
+8,NORTHERN,152,Yendi
+8,NORTHERN,153,Zabzugu Tatale
+9,UPPER EAST,154,Bawku
+9,UPPER EAST,155,Bawku West
+9,UPPER EAST,156,Bolgatanga
+9,UPPER EAST,157,Bongo
+9,UPPER EAST,158,Builsa
+9,UPPER EAST,159,Garu-Tempane
+9,UPPER EAST,160,Kassena Nankana
+9,UPPER EAST,161,Kassena Nankana
+9,UPPER EAST,162,Talensi-Nabdam
+10,UPPER WEST,163,Jirapa
+10,UPPER WEST,164,Lambussie
+10,UPPER WEST,165,Lawra
+10,UPPER WEST,166,Nadowli
+10,UPPER WEST,167,Sissala
+10,UPPER WEST,168,Sissala
+10,UPPER WEST,169,Wa
+10,UPPER WEST,170,Wa East
+10,UPPER WEST,171,Wa West
