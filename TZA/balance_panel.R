@@ -10,7 +10,7 @@ source(file.path(filePath, "pro-gap/TZA/panel_key.R"))
 
 # -------------------------------------
 # The TZA data is quite difficult to
-# balance. In general, there ate three
+# balance. In general, there are three
 # steps to balancing the data
 # 1. select the data that you want to
 # analyse, for example maize farmers
