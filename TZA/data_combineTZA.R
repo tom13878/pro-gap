@@ -1,36 +1,37 @@
 # -------------------------------------
 # creating a panel dataset and a
 # balanced panel dataset with the waves
-# of the TZA data
+# of the TZA data. Do this for all three
+# waves of the data combined, and also
+# just for the last two waves.
+#
+# There are two possibilities
+# farmers can split into differnt farms
+# farmers from different farms can merge
+# into one farm. IN both ways there will
+# be duplicates in at least one of the
+# three waves. Whether that is a problem
+# depends on the type of analysis you
+# choose. Mainly we do not find that it
+# is a problem.
 # -------------------------------------
 
-dataPath <- "C:/Users/Tomas/Documents/LEI/"
+
+if(Sys.info()["user"] == "Tomas"){
+  path <- "C:/Users/Tomas/Documents/LEI/pro-gap/TZA"
+} else {
+  path <- "N:/Internationaal Beleid  (IB)/Projecten/2285000066 Africa Maize Yield Gap/SurveyData/Code/TZA/"
+}
+
+# load packages
 library(dplyr)
 
 options(scipen=999)
 
 # get all three waves, the output of the TZA_***.R script files
-TZA2008 <- readRDS(file.path(dataPath, "data/TZA/TZA2008.rds"))
-TZA2010 <- readRDS(file.path(dataPath, "data/TZA/TZA2010.rds"))
-TZA2012 <- readRDS(file.path(dataPath, "data/TZA/TZA2012.rds"))
-
-# -------------------------------------
-# example: select only maize farmers:
-# filter on household head and
-# zaocode = 11 (maize)
-# -------------------------------------
-
-# 2008
-# maize08 <- TZA2008
-# maize08 <- filter(maize08, status %in% "HEAD", zaocode %in% 11)
-# 
-# # 2010
-# maize10 <- TZA2010
-# maize10 <- filter(maize10, status %in% "HEAD", zaocode %in% 11)
-# 
-# # 2012
-# maize12 <- TZA2012
-# maize12 <- filter(maize12, status %in% "HEAD", zaocode %in% 11)
+source(file.path(path, "/TZA_2008PP.R"))
+source(file.path(path, "/TZA_2010PP.R"))
+source(file.path(path, "/TZA_2012PP.R"))
 
 # -------------------------------------
 # Some waves of the data have variables
@@ -42,14 +43,25 @@ TZA2012 <- readRDS(file.path(dataPath, "data/TZA/TZA2012.rds"))
 # get all name variables that are common to the three waves
 good <- Reduce(intersect, list(names(TZA2008), names(TZA2010), names(TZA2012)))
 
+# get all name variables that are common to the two waves
+good2 <- Reduce(intersect, list(names(TZA2010), names(TZA2012)))
+
 # select only those names common in all three waves
 TZA2008_2 <- TZA2008[, good]
 TZA2010_2 <- TZA2010[, good]
 TZA2012_2 <- TZA2012[, good]
 
-# new full dataset
-fullData <- rbind(TZA2008_2, TZA2010_2, TZA2012_2) %>%
+# select only those names common in the last two waves
+TZA2010_2.2 <- TZA2010[, good2]
+TZA2012_2.2 <- TZA2012[, good2]
+
+# full dataset for all three waves
+fullData081012 <- rbind(TZA2008_2, TZA2010_2, TZA2012_2) %>%
   select(hhid2008, indidy1, hhid2010, indidy2, hhid2012, indidy3, everything())
+
+# full dataset for last two waves
+fullData1012 <- rbind(TZA2010_2.2, TZA2012_2.2) %>%
+  select(hhid2010, indidy2, hhid2012, indidy3, everything())
 
 # -------------------------------------
 # for analysis like random effects we 
@@ -60,29 +72,32 @@ fullData <- rbind(TZA2008_2, TZA2010_2, TZA2012_2) %>%
 # -------------------------------------
 
 # use the final year household id
-fullData2 <- fullData
-fullData2$hhid2012 <- ifelse(is.na(fullData2$hhid2012), fullData2$hhid2010, fullData2$hhid2012)
-fullData2$hhid2012 <- ifelse(is.na(fullData2$hhid2012), fullData2$hhid2008, fullData2$hhid2012)
+fullData081012$hhid2012 <- ifelse(is.na(fullData081012$hhid2012), fullData081012$hhid2010, fullData081012$hhid2012)
+fullData081012$hhid2012 <- ifelse(is.na(fullData081012$hhid2012), fullData081012$hhid2008, fullData081012$hhid2012)
 
 # use the final year individual identification number
 
-fullData2$indidy3 <- ifelse(is.na(fullData2$indidy3), fullData2$indidy2, fullData2$indidy3)
-fullData2$indidy3 <- ifelse(is.na(fullData2$indidy3), fullData2$indidy1, fullData2$indidy3)
+fullData081012$indidy3 <- ifelse(is.na(fullData081012$indidy3), fullData081012$indidy2, fullData081012$indidy3)
+fullData081012$indidy3 <- ifelse(is.na(fullData081012$indidy3), fullData081012$indidy1, fullData081012$indidy3)
 
 # remove household id and individual ids for the first two waves
-fullData2$hhid2008 <- fullData2$hhid2010 <- NULL
-fullData2$indidy1 <- fullData2$indidy2 <- NULL
-fullData2 <- rename(fullData2, hhid = hhid2012, indidy=indidy3)
+fullData081012$hhid2008 <- fullData081012$hhid2010 <- NULL
+fullData081012$indidy1 <- fullData081012$indidy2 <- NULL
+fullData081012 <- rename(fullData081012, hhid = hhid2012, indidy=indidy3)
 
-# -------------------------------------
-# alternativley we may want a balanced 
-# panel, with only those households that
-# appear in every wave of the survey. 
-# This is more difficult because of data
-# attrition, and because some households
-# moved or split from their original
-# family. For example, a child of a farmer
-# leaving to start their own farm.
-# -------------------------------------
+# the same process can be used to create 
+# a panel for only the last two waves
 
-rm(list=ls()[!ls() %in% c("fullData", "fullData2", "dataPath")])
+# use the final year household id
+fullData1012$hhid2012 <- ifelse(is.na(fullData1012$hhid2012), fullData1012$hhid2010, fullData1012$hhid2012)
+
+# use the final year individual identification number
+fullData1012$indidy3 <- ifelse(is.na(fullData1012$indidy3), fullData1012$indidy2, fullData1012$indidy3)
+
+# remove household id and individual ids for the first two waves
+fullData1012$hhid2010 <- NULL
+fullData1012$indidy2 <- NULL
+fullData1012 <- rename(fullData1012, hhid = hhid2012, indidy=indidy3)
+
+rm("path", "good", "good2", "TZA2008", "TZA2008_2", "TZA2010",
+   "TZA2010_2", "TZA2010_2.2", "TZA2012", "TZA2012_2", "TZA2012_2.2")
