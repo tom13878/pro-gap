@@ -130,3 +130,8 @@ endog2010 <- rename(endog2010, hhid2010=y2_hhid)
 
 setwd("c:/users/tomas/documents/lei/data/TZA")
 saveRDS(endog2010, "endog2010.rds")
+
+# all farmers
+summary(glm(cbind(vouchAny, 1-vouchAny) ~ sex + age + log(vtot) + dist2HQ + dist2market +
+              years + education + education1555 + N1555 +
+              ccm_prez10*split_prez10, family=binomial, data=endog2010))
