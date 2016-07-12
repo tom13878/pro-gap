@@ -4,19 +4,15 @@
 
 dataPath <- "C:/Users/Tomas/Documents/LEI"
 
-# read in the file which correctly matches
-# all the map regions and districts with
-# the lsms-isa regions and districts
-map2lsms <- read.csv(file.path(dataPath, "data/TZA/map2lsmsTZA.csv"))
-
 # read in the preprocessed data from the file called
 # data_combine.R. This file binds all the data together
 # and also contains individual datasets for each of the
 # three waves
 
 source(file.path(dataPath, "pro-gap/TZA/data_combine.R"))
-ls() # most interested in fullData
-fullData$DISNAME <- as.character(fullData$DISNAME)
+# ls() # most interested in fullData
+fullDataMap <- fullData; rm("fullData", "fullData2")
+fullDataMap$DISNAME <- as.character(fullDataMap$DISNAME)
 
 # there are some small changes that need
 # to be made to match the lsms data with
@@ -24,39 +20,44 @@ fullData$DISNAME <- as.character(fullData$DISNAME)
 
 # Tanga
 tanga <- c("TANGA", "TANGA URBAN")
-fullData$DISNAME <- ifelse(fullData$DISNAME  %in% tanga, "TANGA", fullData$DISNAME )
+fullDataMap$DISNAME <- ifelse(fullDataMap$DISNAME  %in% tanga, "TANGA", fullDataMap$DISNAME )
 
 # Mororgoro
 morogoro <- c("MOROGORO RURAL", "MOROGORO URBAN")
-fullData$DISNAME <- ifelse(fullData$DISNAME  %in% morogoro, "MOROGORO", fullData$DISNAME )
+fullDataMap$DISNAME <- ifelse(fullDataMap$DISNAME  %in% morogoro, "MOROGORO", fullDataMap$DISNAME )
 
 # BIHARAMULO
 biharamulo <- c("CHATO", "BIHARAMULO")
-fullData$DISNAME <- ifelse(fullData$DISNAME  %in% biharamulo, "BIHARAMULO", fullData$DISNAME)
+fullDataMap$DISNAME <- ifelse(fullDataMap$DISNAME  %in% biharamulo, "BIHARAMULO", fullDataMap$DISNAME)
 
 # BUKOBA RURAL
 bukoba_rural <- c("BUKOBA RURAL", "MISENYE")
-fullData$DISNAME <- ifelse(fullData$DISNAME  %in% bukoba_rural, "BUKOBA RURAL", fullData$DISNAME)
+fullDataMap$DISNAME <- ifelse(fullDataMap$DISNAME  %in% bukoba_rural, "BUKOBA RURAL", fullDataMap$DISNAME)
 
 # MUHEZA
 muheza <- c("MUHEZA", "MKINGA")
-fullData$DISNAME <- ifelse(fullData$DISNAME  %in% muheza, "MUHEZA", fullData$DISNAME)
+fullDataMap$DISNAME <- ifelse(fullDataMap$DISNAME  %in% muheza, "MUHEZA", fullDataMap$DISNAME)
 
 rm(tanga, morogoro, muheza, biharamulo, bukoba_rural)
 
+# read in the file which correctly matches
+# all the map regions and districts with
+# the lsms-isa regions and districts
+map2lsms <- read.csv(file.path(dataPath, "data/TZA/map2lsmsTZA.csv"))
+
 # match the processed lsms data with the map2lsms file
 # on REGNAME and DISNAME
-names(fullData)
-fullData <- rename(fullData, LSMSREGNAME = REGNAME, LSMSDISTNAME = DISNAME)
-fullData <- left_join(fullData, map2lsms)
+# names(fullDataMap)
+fullDataMap <- rename(fullDataMap, LSMSREGNAME = REGNAME, LSMSDISTNAME = DISNAME)
+fullDataMap <- left_join(fullDataMap, map2lsms)
 
 # there are some NA values, but these are the
 # islands which are not important for our
 # analysis
 
-islands <- fullData[is.na(fullData$REGNAME), ]
-View(unique(select(islands, LSMSREGNAME, LSMSDISTNAME)))
-fullData <- fullData[!is.na(fullData$REGNAME), ]
+islands <- fullDataMap[is.na(fullDataMap$REGNAME), ]
+# View(unique(select(islands, LSMSREGNAME, LSMSDISTNAME)))
+fullDataMap <- fullDataMap[!is.na(fullDataMap$REGNAME), ]
 
 # there are large outliers in the data. This
 # is in part due to some very small area 
@@ -64,23 +65,27 @@ fullData <- fullData[!is.na(fullData$REGNAME), ]
 # yield and nitrogen per hectacre values
 
 source(file.path(dataPath, "functions/winsor.R"))
-fullData$yld <- winsor(fullData$yld)
-fullData$N <- winsor(fullData$N)
+fullDataMap$yld <- winsor(fullDataMap$yld)
+fullDataMap$N <- winsor(fullDataMap$N)
+fullDataMap$asset <- winsor(fullDataMap$asset)
 
 # now we can group by whatever variables we choose
 # here we group by year, region and district
 
-by_district <- filter(fullData, status == "HEAD", zaocode == 11) %>%
+by_district <- filter(fullDataMap, status == "HEAD", zaocode == 11) %>%
   group_by(surveyyear, REGNAME, DISTNAME) %>%
   summarise(yld = mean(yld, na.rm=TRUE),
             asset = mean(asset, na.rm=TRUE),
             N = mean(N, na.rm=TRUE),
-            n = n())
+            n = n(),
+            assetph = log(mean(assetph, na.rm=TRUE)))
 
 # This can then be matched up with the 2002 census map
 
 TZA <- readOGR(dsn = file.path(dataPath, "data/TZA/Tanzania_District_EA_2002_region"),
                layer = "Tanzania_District_EA_2002_region")
+islands <- c("Kaskazini Pemba", "Mjini Magharibi", "Kusini", "kaskazini", "Kusini Pemba")
+TZA <- subset(TZA, !REGNAME %in% islands)
 
 # fortify map for ggplot
 tf <- fortify(TZA)
@@ -94,14 +99,17 @@ TZA@data <- left_join(TZA@data, by_district)
 
 tf <- left_join(tf, TZA@data)
 
-# and the plots
+rm("by_district", "fullDataMap", "islands", "map2lsms", "trim", "winsor2", "TZA")
 
-ggplot(tf) + 
-  geom_polygon(data=tf, aes_string(x="long", y="lat", group="group", fill="yld"), colour="black", size = .1) +
-  coord_map("mercator") +
-  facet_wrap( ~ surveyyear) +
-  theme(legend.position="bottom") +
-  scale_fill_gradientn(colours=c("#ffffff", brewer.pal(n=9, name="Oranges")),
-                       na.value="#ffffff")
+# and the plots
+tf <- subset(tf, !is.na(surveyyear))
+
+# ggplot(tf) + 
+#   geom_polygon(data=tf, aes_string(x="long", y="lat", group="group", fill="yld"), colour="black", size = .1) +
+#   coord_map("mercator") +
+#   facet_wrap( ~ surveyyear) +
+#   theme(legend.position="bottom") +
+#   scale_fill_gradientn(colours=c("#ffffff", brewer.pal(n=9, name="Oranges")),
+#                        na.value="#ffffff")
 
 
