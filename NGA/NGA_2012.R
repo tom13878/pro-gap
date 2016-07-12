@@ -2,7 +2,14 @@
 ############ NIGERIA 2012 #############
 #######################################
 
-setwd("C:/Users/Tomas/Documents/lei/data/NGA/NGA_2012_LSMS_v03_M_STATA")
+# Tom
+dataPath <- "C:/Users/Tomas/Documents/LEI/data/"
+
+# setwd("C:/Users/Tomas/Documents/lei/data/NGA/NGA_2010_GHSP_v02_M_STATA")
+wdPath <- "D:\\Dropbox\\Michiel_research\\2285000066 Africa Maize Yield Gap\\Analysis\\NGA"
+setwd(wdPath)
+
+dataPath <- "D:\\Data\\IPOP\\SurveyData\\"
 
 library(haven)
 library(dplyr)
@@ -10,24 +17,27 @@ library(dplyr)
 options(scipen=999)
 
 #######################################
+############## SETTINGS ###############
+#######################################
+
+iso3c <- "NGA"
+surveyyear<-2012
+
+
+#######################################
 ############### OUTPUT ################
 #######################################
 
-oput <- read_dta("Post Harvest Wave 2/Agriculture/secta3_harvestw2.dta") %>%
-    dplyr::select(hhid, plotid, crop=cropname, qty=sa3q6a1, qty_unit=sa3q6a2,
+oput <- read_dta(file.path(dataPath, "NGA/2012/Post Harvest Wave 2/Agriculture/secta3_harvestw2.dta")) %>%
+    dplyr::select(hhid, plotid, crop=as.numeric(cropcode), qty=sa3q6a1, qty_unit=sa3q6a2,
            main_buyer=sa3q10, qty_sold=sa3q11a, qty_sold_unit=sa3q11b, qty_sold_naira=sa3q12)
 
 oput$qty_unit <- as.integer(oput$qty_unit)
 oput$qty_sold_unit <- as.integer(oput$qty_sold_unit)
 
 # -------------------------------------
-# Lots of mispellings in the crop names
-# Tried to fix some of them. Also not
-# clear what is a legume here
+# Not clear what is a legume here
 # -------------------------------------
-
-bad_maize <- c("MAIZE.", "MAAIZE", "MAIZE FARM", "M AIZE", "MAZIE", "maize")
-oput$crop <- ifelse(oput$crop %in% bad_maize, "MAIZE", oput$crop)
 
 legumes <- c("PIGEON PEA", "SOYA BEANS", "LOCUST BEAN")
 
@@ -42,8 +52,10 @@ oput_x$hhid <- as.numeric(oput_x$hhid)
 
 oput <- left_join(oput, oput_x); rm(oput_x)
 
-# select on maize and remove observations with quantity NA or 0
-oput_maize <- oput[oput$crop %in% "MAIZE" & ! is.na(oput$qty) & !oput$qty %in% 0,]
+# Select on maize and remove observations with quantity NA or 0
+# Important to select on cropcode (1080) and not on label "Maize" because of spellling errors.
+# Note that for certain type of analysis it could be interesting to retain the 0 values. 
+oput_maize <- oput[oput$crop %in% 1080 & !is.na(oput$qty) & !oput$qty %in% 0,]
 
 # unit labelled vector does not come through. Make conversion
 # factor using information from survey
@@ -65,13 +77,13 @@ oput_maize <- dplyr::mutate(oput_maize, qty_kg = qty*weight)
 oput_maize <- dplyr::select(oput_maize, hhid, plotid, qty, crop_count, legume)
 oput_maize$hhid <- as.integer(oput_maize$hhid)
 
-rm(list=c("bad_maize", "cnvrt", "legumes", "oput", "unit_code", "weight"))
+rm(list=c("cnvrt", "legumes", "oput", "unit_code", "weight"))
 
 #######################################
 ############## CHEMICAL ###############
 #######################################
 
-chem <- read_dta("Post Planting Wave 2/Agriculture/sect11c2_plantingw2.dta") %>%
+chem <- read_dta(file.path(dataPath, "NGA/2012/Post Planting Wave 2/Agriculture/sect11c2_plantingw2.dta")) %>%
   dplyr::select(hhid, plotid,
                 pest=s11c2q1, pest_q=s11c2q2a, pest_q_unit=s11c2q2b,
                 free_pest_q=s11c2q7a, free_pest_q_unit=s11c2q7b,
@@ -104,15 +116,15 @@ chem <- transmute(chem, hhid, plotid, pest, herb,
                   herb_q=herb_q + free_herb_q)
 
 # COMMERCIAL FERTILIZER
-fert1 <- read_dta("Post Planting Wave 2/Agriculture/sect11d_plantingw2.dta") %>%
+fert1 <- read_dta(file.path(dataPath, "NGA/2012/Post Planting Wave 2/Agriculture/sect11d_plantingw2.dta")) %>%
   dplyr::select(hhid, plotid, typ=s11dq15, qty=s11dq16, valu=s11dq19)
-fert2 <- read_dta("Post Planting Wave 2/Agriculture/sect11d_plantingw2.dta") %>%
+fert2 <- read_dta(file.path(dataPath, "NGA/2012/Post Planting Wave 2/Agriculture/sect11d_plantingw2.dta")) %>%
     dplyr::select(hhid, plotid, typ=s11dq27, qty=s11dq28, valu=s11dq29)
 
 # FREE OR LEFT OVER FERTILIZER
-freeFert <-  read_dta("Post Planting Wave 2/Agriculture/sect11d_plantingw2.dta") %>%
+freeFert <-  read_dta(file.path(dataPath, "NGA/2012/Post Planting Wave 2/Agriculture/sect11d_plantingw2.dta")) %>%
     dplyr::select(hhid, plotid, typ=s11dq7, qty=s11dq8)
-leftOverFert <- read_dta("Post Planting Wave 2/Agriculture/sect11d_plantingw2.dta") %>%
+leftOverFert <- read_dta(file.path(dataPath, "NGA/2012/Post Planting Wave 2/Agriculture/sect11d_plantingw2.dta")) %>%
     dplyr::select(hhid, plotid, typ=s11dq3, qty=s11dq4)
 
 # make factor variables into characters for easier joining
@@ -135,7 +147,7 @@ freeFert$typ <- ifelse(freeFert$typ %in% bad, NA, freeFert$typ)
 leftOverFert$typ <- ifelse(leftOverFert$typ %in% bad, NA, leftOverFert$typ)
 
 # provide a nitrogen component value for npk and urea (from Michiel's file)
-conv <- read.csv("c:/users/tomas/documents/lei/data/Fert_comp.csv") %>%
+conv <- read.csv(file.path(dataPath, "Other/Fertilizer/Fert_comp.csv")) %>%
   transmute(typ=Fert_type2, n=N_share/100, p=P_share/100) %>%
   filter(typ %in% unique(fert1$typ))
 
@@ -194,7 +206,7 @@ rm(list=c("bad", "fert", "fert1", "fert2", "freeFert", "leftOverFert", "otherFer
 
 # world bank provides a complete set of
 # area measurements
-areas <- read_dta("../areas_nga_y2_imputed.dta") %>%
+areas <- read_dta(file.path(dataPath, "Other/plot_size/areas_nga_y2_imputed.dta")) %>%
   select(hhid=case_id, plotid=plotnum,
          area_gps=area_gps_mi_50,
          area_farmer=area_sr)
@@ -215,48 +227,48 @@ areaTotal$area_tot <- ifelse(areaTotal$area_tot %in% 0, NA, areaTotal$area_tot)
 
 # POST PLANTING
 
-lab1 <- read_dta("Post Planting Wave 2/Agriculture/sect11c1_plantingw2.dta") %>%
-    select(hhid, plotid, s11c1q1a1:s11c1q9) %>%
-        transmute(hhid, plotid,
-                  id1=s11c1q1a1, lab1=s11c1q1a2*s11c1q1a3,
-                  id2=s11c1q1b1, lab2=s11c1q1b2*s11c1q1b3,
-                  id3=s11c1q1c1, lab3=s11c1q1c2*s11c1q1c3,
-                  id4=s11c1q1d1, lab4=s11c1q1d2*s11c1q1d3,
-                  hirM=s11c1q2*s11c1q3,
-                  hirF=s11c1q5*s11c1q6,
-                  hirC=s11c1q8*s11c1q9)
+lab1 <- read_dta(file.path(dataPath, "NGA/2012/Post Planting Wave 2/Agriculture/sect11c1_plantingw2.dta")) %>%
+  select(hhid, plotid, s11c1q1a1:s11c1q9) %>%
+  transmute(hhid, plotid,
+            id1=s11c1q1a1, lab1=s11c1q1a2*s11c1q1a3,
+            id2=s11c1q1b1, lab2=s11c1q1b2*s11c1q1b3,
+            id3=s11c1q1c1, lab3=s11c1q1c2*s11c1q1c3,
+            id4=s11c1q1d1, lab4=s11c1q1d2*s11c1q1d3,
+            hirM=s11c1q2*s11c1q3,
+            hirF=s11c1q5*s11c1q6,
+            hirC=s11c1q8*s11c1q9)
 
 # make all NA values zero
 lab1[is.na(lab1)] <- 0
 
 # sum all labour across a single plot - all measured in days
 lab1 <- transmute(lab1, hhid, plotid,
-                 plant_lab=lab1 + lab2 + lab3 + lab4 +
-                     hirM + hirF + hirC)
+                  plant_lab=lab1 + lab2 + lab3 + lab4 +
+                    hirM + hirF + hirC)
 
 
 
 # POST HARVEST
 
-lab2 <- read_dta("Post Harvest Wave 2/Agriculture/secta2_harvestw2.dta") %>%
-    select(hhid, plotid, sa2q1a1:sa2q10) %>%
-        transmute(hhid, plotid,
-                  id1=sa2q1a1, lab1=sa2q1a2*sa2q1a3,
-                  id2=sa2q1b1, lab2=sa2q1b2*sa2q1b3,
-                  id3=sa2q1c1, lab3=sa2q1c2*sa2q1c3,
-                  id4=sa2q1d1, lab4=sa2q1d2*sa2q1d3,
-                  hirM=sa2q3*sa2q4,
-                  hirF=sa2q6*sa2q7,
-                  hirC=sa2q9*sa2q10
-                  )
+lab2 <- read_dta(file.path(dataPath, "NGA/2012/Post Harvest Wave 2/Agriculture/secta2_harvestw2.dta")) %>%
+  select(hhid, plotid, sa2q1a1:sa2q10) %>%
+  transmute(hhid, plotid,
+            id1=sa2q1a1, lab1=sa2q1a2*sa2q1a3,
+            id2=sa2q1b1, lab2=sa2q1b2*sa2q1b3,
+            id3=sa2q1c1, lab3=sa2q1c2*sa2q1c3,
+            id4=sa2q1d1, lab4=sa2q1d2*sa2q1d3,
+            hirM=sa2q3*sa2q4,
+            hirF=sa2q6*sa2q7,
+            hirC=sa2q9*sa2q10
+  )
 
 # make all NA values zero
 lab2[is.na(lab2)] <- 0
 
 # sum all labour across a single plot - all measured in days
 lab2 <- transmute(lab2, hhid, plotid,
-                 harv_lab=lab1 + lab2 + lab3 + lab4 +
-                     hirM + hirF + hirC)
+                  harv_lab=lab1 + lab2 + lab3 + lab4 +
+                    hirM + hirF + hirC)
 lab2$hhid <- as.integer(lab2$hhid)
 
 
@@ -269,12 +281,12 @@ lab2$hhid <- as.integer(lab2$hhid)
 # only in post harvest questionnaire
 # -------------------------------------
 
-implmt <- read_dta("Post Harvest Wave 2/Agriculture/secta42_harvestw2.dta") %>%
-    dplyr::select(hhid, itemcode=item_cd, qty=item_seq, valu=sa4q4) %>%
-        dplyr::filter(!qty %in% 0, !is.na(qty), !valu %in% 0, !is.na(valu)) %>%
-            dplyr::transmute(hhid, valu=qty*valu) %>%
-                dplyr::group_by(hhid) %>%
-                    dplyr::summarise(implmt_value=sum(valu))
+implmt <- read_dta(file.path(dataPath, "NGA/2012/Post Harvest Wave 2/Agriculture/secta42_harvestw2.dta")) %>%
+  dplyr::select(hhid, itemcode=item_cd, qty=item_seq, valu=sa4q4) %>%
+  dplyr::filter(!qty %in% 0, !is.na(qty), !valu %in% 0, !is.na(valu)) %>%
+  dplyr::transmute(hhid, valu=qty*valu) %>%
+  dplyr::group_by(hhid) %>%
+  dplyr::summarise(implmt_value=sum(valu))
 implmt$hhid <- as.integer(implmt$hhid)
 
 # -------------------------------------
@@ -284,10 +296,10 @@ implmt$hhid <- as.integer(implmt$hhid)
 
 # POST PLANTING
 
-lvstk <- read_dta("Post Planting Wave 2/Agriculture/sect11i_plantingw2.dta") %>%
-    dplyr::select(hhid, lvstk=animal_cd, qty=s11iq2, valu=s11iq3) %>%
-        dplyr::filter(!is.na(qty), !qty %in% 0) %>%
-           dplyr:: mutate(prc=valu/qty)
+lvstk <- read_dta(file.path(dataPath, "NGA/2012/Post Planting Wave 2/Agriculture/sect11i_plantingw2.dta")) %>%
+  dplyr::select(hhid, lvstk=animal_cd, qty=s11iq2, valu=s11iq3) %>%
+  dplyr::filter(!is.na(qty), !qty %in% 0) %>%
+  dplyr:: mutate(prc=valu/qty)
 
 # select only the larger animals - codes are
 # in the survey but basically cows, pigs sheep and camels
@@ -302,14 +314,14 @@ lvstk$valu <- ifelse(is.na(lvstk$valu), lvstk$valu_avg, lvstk$valu)
 
 # calculate per houshold livestock wealth
 lvstk <- group_by(lvstk, hhid) %>%
-        summarise(lvstk_valu=sum(valu*qty))
+  summarise(lvstk_valu=sum(valu*qty))
 
 # POST HARVEST
 
-lvstk2 <- read_dta("Post Harvest Wave 2/Agriculture/secta6_harvestw2.dta") %>%
-    select(hhid, lvstk=animal_cd, qty=sa6q2, valu=sa6q3) %>%
-        filter(!is.na(qty), !qty %in% 0) %>%
-        mutate(prc=valu/qty)
+lvstk2 <- read_dta(file.path(dataPath, "NGA/2012/Post Harvest Wave 2/Agriculture/secta6_harvestw2.dta")) %>%
+  select(hhid, lvstk=animal_cd, qty=sa6q2, valu=sa6q3) %>%
+  filter(!is.na(qty), !qty %in% 0) %>%
+  mutate(prc=valu/qty)
 
 # select only the larger animals - codes are
 # in the survey but basically cows, pigs sheep and camels
@@ -323,7 +335,7 @@ lvstk2$valu <- ifelse(is.na(lvstk2$valu), lvstk2$valu_avg, lvstk2$valu)
 
 # calculate per houshold livestock wealth
 lvstk2 <- group_by(lvstk2, hhid) %>%
-    summarise(lvstk2_valu=sum(valu*qty))
+  summarise(lvstk2_valu=sum(valu*qty))
 lvstk2$hhid <- as.integer(lvstk2$hhid)
 
 rm("big")
@@ -331,15 +343,29 @@ rm("big")
 #######################################
 ################ GEO ##################
 #######################################
+# labels sometimes gives errors when using read_dta
+# There is a fix but probably not yet in CRAN version
+# https://github.com/hadley/haven/issues/86
+loc <-  read_dta(file.path(dataPath, "NGA/2012/Post Harvest Wave 2/Agriculture/secta1_harvestw2.dta")) %>%
+  transmute(zone_lsms = as_factor(zone), region_lsms = as_factor(state), lga, hhid, plotid, rural = sector) %>%
+  mutate(rural = ifelse(rural == 2, 1, 0)) 
 
-geo <- read_dta("Geodata Wave 2/NGA_HouseholdGeovars_Y2.dta") %>%
-    dplyr::select(hhid, lon=LON_DD_MOD, lat=LAT_DD_MOD, zone,
-                  state, AEZ=ssa_aez09, rural=sector)
 
-geo$zone <- as_factor(geo$zone)
-geo$state <- as_factor(geo$state)
-geo$rural <- ifelse(geo$rural %in% 2, 1, 0)
-geo$AEZ <- as.integer(geo$AEZ)
+# lga has duplicate lables, i.e. one label has multiple levels, which is not allowed. This is corrected.
+# Create label-number table
+lga = attr(loc$lga, 'labels')
+name_lga <- names(lga)
+link <- data.frame(lga, district_lsms = name_lga)
+count <- as.data.frame(table(name_lga))
+# Six labels names with multiple labels in lga
+loc <- left_join(loc, link)
+loc$district_lsms <- factor(loc$district_lsms)
+
+loc <- mutate(loc, zone_lsms = as.factor(toupper(zone_lsms)), region_lsms = as.factor(toupper(region_lsms)), district_lsms = as.factor(toupper(district_lsms))) %>%
+        select(-lga)
+
+# WDswitch
+geo <- readRDS(file.path(wdPath, "Data\\NGA_geo_total_2012.rds"))
 
 #######################################
 ########### SOCIO/ECONOMIC ############
@@ -349,7 +375,7 @@ geo$AEZ <- as.integer(geo$AEZ)
 # and post harvest household questionnaire
 
 # WDswitch
-se <- read_dta("Post Planting Wave 2/Household/sect1_plantingw2.dta") %>%
+se <- read_dta(file.path(dataPath, "NGA/2012/Post Planting Wave 2/Household/sect1_plantingw2.dta")) %>%
   select(hhid, indiv, sex=s1q2, status=s1q3, age=s1q6)
 se$sex <- as_factor(se$sex)
 se$status <- as_factor(se$status)
@@ -359,7 +385,7 @@ se <- filter(se, status %in% "HEAD")
 # but we do have level achieved
 # WDswitch
 
-ed <- read_dta("Post Planting Wave 2/Household/sect2_plantingw2.dta") %>%
+ed <- read_dta(file.path(dataPath, "NGA/2012/Post Planting Wave 2/Household/sect2_plantingw2.dta")) %>%
   select(hhid, indiv, educ=s2q8)
 ed$educ <- as_factor(ed$educ)
 
@@ -378,7 +404,7 @@ se <- select(se, -indiv, -status)
 # all of them
 # -------------------------------------
 
-cropping <- read_dta("Post Planting Wave 2/Agriculture/sect11f_plantingw2.dta") %>%
+cropping <- read_dta(file.path(dataPath, "NGA/2012/Post Planting Wave 2/Agriculture/sect11f_plantingw2.dta")) %>%
     dplyr::select(hhid, plotid, cropcode, cropin=s11fq2)
 
 # find only maize - crop code 1080
@@ -398,7 +424,7 @@ cropping <- dplyr::select(cropping, -cropcode, -cropin)
 # irrigation variable
 # ------------------------------------
 
-irrig <- read_dta("Post Planting Wave 2/Agriculture/sect11b1_plantingw2.dta") %>%
+irrig <- read_dta(file.path(dataPath, "NGA/2012/Post Planting Wave 2/Agriculture/sect11b1_plantingw2.dta")) %>%
     dplyr::select(hhid, plotid, irrig=s11b1q39)
 
 irrig$irrig <- ifelse(irrig$irrig %in% 1, 1, 0)
@@ -407,18 +433,28 @@ irrig$irrig <- ifelse(irrig$irrig %in% 1, 1, 0)
 ########### CROSS SECTION #############
 #######################################
 
+# -------------------------------------
+# plot level joins
+
 NGA2012 <- left_join(oput_maize, chem)
 NGA2012 <- left_join(NGA2012, areas)
 NGA2012 <- left_join(NGA2012, lab1)
 NGA2012 <- left_join(NGA2012, lab2)
 NGA2012 <- left_join(NGA2012, cropping)
 NGA2012 <- left_join(NGA2012, irrig)
+NGA2012 <- left_join(NGA2012, loc)
+NGA2012 <- left_join(NGA2012, geo)
+
+
+# -------------------------------------
+# household level joins
+
 NGA2012 <- left_join(NGA2012, implmt)
 NGA2012 <- left_join(NGA2012, lvstk)
 NGA2012 <- left_join(NGA2012, lvstk2)
-NGA2012 <- left_join(NGA2012, geo)
 NGA2012 <- left_join(NGA2012, areaTotal)
 NGA2012 <- left_join(NGA2012, se)
+
 
 # -------------------------------------
 # Make some new variables
@@ -432,27 +468,29 @@ NGA2012$lvstk_valu <- ifelse(is.na(NGA2012$lvstk_valu), 0, NGA2012$lvstk_valu)
 NGA2012$lvstk2_valu <- ifelse(is.na(NGA2012$lvstk2_valu), 0, NGA2012$lvstk2_valu)
 
 # per hectacre
-NGA2012 <- mutate(NGA2012,
-             yld=qty/area_gps,
-             N=N/area_gps,
-             P=P/area_gps,
-             pest_q=pest_q/area_gps,
-             herb_q=herb_q/area_gps,
-             asset=(implmt_value + lvstk2_valu)/area_tot
-)
+NGA2012 <- NGA2012 %>%  
+  mutate(
+    asset= (implmt_value + lvstk2_valu),
+    lab = (plant_lab + harv_lab),
+    yld=qty/area_gps,
+    N=N/area_gps,
+    P=P/area_gps,
+    lab=lab/area_gps, # Note that plant lab is missing in 2010
+    plant_lab = plant_lab/area_gps,
+    harv_lab = harv_lab/area_gps,
+    asset=asset/area_tot) %>%
+  select(-qty)
 
-NGA2012 <- select(NGA2012, -qty)
 
-# add final variables
-NGA2012 <- mutate(NGA2012,
-             N2=N^2,
-             asset2=asset^2,
-             area2=area_gps^2,
-             harv_lab2=harv_lab^2,
-             surveyyear=2012
-)
+# add final variables and rename
+hhid <- paste("hhid", surveyyear, sep ="")
+eaid <- paste("eaid", surveyyear, sep ="")
+plotid <- paste("plotid", surveyyear, sep ="")
 
-rm(list=ls()[!ls() %in% c("NGA2010", "NGA2012")])
+NGA2012 <- mutate(NGA2012, surveyyear = surveyyear) %>%
+  rename_(.dots = setNames(c("eaid", "hhid", "plotid"), c(eaid, hhid, plotid))) 
+
+#rm(list=ls()[!ls() %in% c("NGA2010", "NGA2012")])
 
 # save to file
-write_dta(NGA2012, "C:/Users/Tomas/Documents/Work/LEI/NGA12_data.dta")
+saveRDS(NGA2012, file=paste(".\\Data\\", iso3c, "_data_", surveyyear, ".rds", sep=""))
