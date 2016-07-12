@@ -1,0 +1,9 @@
+---
+title: "Nigeria Data"
+author: "Tomas Morley"
+date: "23 June 2016"
+output: pdf_document
+---
+
+# Introduction: The LSMS-ISA survey
+
