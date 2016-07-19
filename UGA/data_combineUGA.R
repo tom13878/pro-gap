@@ -4,15 +4,20 @@
 # of the UGA data (three waves)
 # -------------------------------------
 
-dataPath <- "C:/Users/Tomas/Documents/LEI/"
+if(Sys.info()["user"] == "Tomas"){
+  path <- "C:/Users/Tomas/Documents/LEI/pro-gap/UGA"
+} else {
+  path <- "N:/Internationaal Beleid  (IB)/Projecten/2285000066 Africa Maize Yield Gap/SurveyData/Code/UGA/"
+}
+
 library(dplyr)
 
 options(scipen=999)
 
-# get all three waves, the output of the UGA_***.R script files
-UGA2009 <- readRDS(file.path(dataPath, "data/UGA/UGA2009.rds"))
-UGA2010 <- readRDS(file.path(dataPath, "data/UGA/UGA2010.rds"))
-UGA2011 <- readRDS(file.path(dataPath, "data/UGA/UGA2011.rds"))
+# get all three waves, the output of the UGA_****.R script files
+suppressMessages(source(file.path(path, "UGA_2009.R")))
+suppressMessages(source(file.path(path, "UGA_2010.R")))
+suppressMessages(source(file.path(path, "UGA_2011.R")))
 
 # -------------------------------------
 # example: select only maize farmers:
@@ -38,11 +43,11 @@ UGA2011 <- readRDS(file.path(dataPath, "data/UGA/UGA2011.rds"))
 # and individuals
 # -------------------------------------
 
-hhid2009 <- unique(UGA2009$hhid2009)
-hhid2010 <- unique(UGA2010$hhid2010)
-hhid2011 <- unique(UGA2011$hhid2011)
-table(hhid2009 %in% hhid2010)
-table(hhid2009 %in% hhid2011)
+# hhid2009 <- unique(UGA2009$hhid2009)
+# hhid2010 <- unique(UGA2010$hhid2010)
+# hhid2011 <- unique(UGA2011$hhid2011)
+# table(hhid2009 %in% hhid2010)
+# table(hhid2009 %in% hhid2011)
 
 # so all we do is change the names of the variables
 # to a standard name across all years
@@ -67,4 +72,4 @@ UGA2011_2 <- UGA2011[, good]
 fullData <- rbind(UGA2009_2, UGA2010_2, UGA2011_2) %>%
   select(hhid, indidy, everything())
 
-rm(list=ls()[!ls() %in% c("fullData", "dataPath")])
+rm(good, path, UGA2009, UGA2009_2, UGA2010, UGA2010_2, UGA2011, UGA2011_2)

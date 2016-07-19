@@ -2,11 +2,13 @@
 ########### UGANDA 2009-10 ############
 #######################################
 
-# Tom
-dataPath <- "C:/Users/Tomas/Documents/LEI/data/UGA/2009_10/Data"
+if(Sys.info()["user"] == "Tomas"){
+  dataPath <- "C:/Users/Tomas/Documents/LEI/data/UGA/2009_10/Data"
+} else {
+  dataPath <- "W:/LEI/Internationaal Beleid  (IB)/Projecten/2285000066 Africa Maize Yield Gap/SurveyData/UGA/2009_10/Data/"
+}
 
-# LEI Path
-# dataPath <- "W:/LEI/Internationaal Beleid  (IB)/Projecten/2285000066 Africa Maize Yield Gap/SurveyData/UGA/2009_10/Data/"
+
 
 library(haven)
 library(reshape2)
@@ -384,6 +386,6 @@ UGA2009 <- mutate(UGA2009,
 
 UGA2009 <- mutate(UGA2009, surveyyear=2009) %>% rename(hhid2009=HHID)
 
-rm(list=ls()[!ls() %in% c("UGA2009", "dataPath")])
+# take out the trash
+rm(crop, dataPath, inflate, inflation, rate2010, rate2011, REGDIS)
 
-# saveRDS(UGA2009, file.path(dataPath, "/../../UGA2009.rds"))
