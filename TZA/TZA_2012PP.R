@@ -45,7 +45,7 @@ TZA2012$trans <- ifelse(TZA2012$trans %in% 1, 1, 0) # assume NA -> no transporta
 
 # add final variables
 
-TZA2012 <- mutate(TZA2012, surveyyear=2012) %>% rename(hhid2012=y3_hhid)
+TZA2012 <- mutate(TZA2012, surveyyear=2012)
 
 rm("path2Data")
 

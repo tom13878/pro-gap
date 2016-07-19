@@ -421,4 +421,6 @@ TZA2010 <- left_join(TZA2010, tc); rm(tc)
 TZA2010 <- left_join(TZA2010, lab); rm(lab)
 TZA2010 <- left_join(TZA2010, areas); rm(areas)
 
+TZA2010 <- rename(TZA2010, hhid2010=y2_hhid)
+
 rm("bad", "dataPath")

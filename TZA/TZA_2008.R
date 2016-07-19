@@ -408,4 +408,7 @@ TZA2008 <- left_join(TZA2008, tc); rm(tc)
 TZA2008 <- left_join(TZA2008, lab); rm(lab)
 TZA2008 <- left_join(TZA2008, land); rm(land)
 
+TZA2008 <- rename(TZA2008, hhid2008=hhid)
+
+
 rm("ext", "bad", "dataPath")
