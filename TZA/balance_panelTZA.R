@@ -27,7 +27,7 @@ source(file.path(filePath, "pro-gap/TZA/panel_key.R"))
 
 # Example 1: maize farmers
 # step 1: make your selection
-maize <- filter(fullData081012, status=="HEAD", zaocode==11)
+maize <- filter(fullData081012, status=="HEAD", crop_code==11)
 
 # step 2: check if the households were followed
 # each year
@@ -35,7 +35,7 @@ maize <- filter(maize, hhid %in% KEY$hhid2012)
 
 # step 3: check whether that farmer actually
 # produced maize each year
-x1 <- maize$hhid[maize$surveyyear==2008]
+# x1 <- maize$hhid[maize$surveyyear==2008]
 x2 <- maize$hhid[maize$surveyyear==2010]
 x3 <- maize$hhid[maize$surveyyear==2012]
 good <- Reduce(intersect, list(x1, x2, x3))
@@ -60,7 +60,7 @@ maize <- filter(maize, hhid %in% good)
 
 # find where the plot variables start
 plot_var <- (which(names(fullData081012)=="plotnum")) - 1
-maize2 <- filter(fullData081012, status=="HEAD", zaocode==11) %>%
+maize2 <- filter(fullData081012, status=="HEAD", crop_code==11) %>%
   select(1:plot_var, surveyyear) %>% unique
 
 # step 2: check if the households were followed
