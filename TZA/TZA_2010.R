@@ -151,7 +151,6 @@ oput_x <- group_by(oput, y2_hhid, plotnum) %>%
 
 oput <- left_join(oput, oput_x); rm(oput_x)
 
-# in the maize farmers, exclude farmers
 # who responded they produced zero crop, or did not respond (NA)
 
 oput <- oput[! is.na(oput$crop_qty_harv) & !oput$crop_qty_harv %in% 0, ]
