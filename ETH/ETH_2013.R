@@ -2,29 +2,107 @@
 # Ethiopia data 2013 - 2014 survey
 # -------------------------------------
 
-# WDswitch
-dataPath <- "C:/Users/Tomas/Documents/LEI/data/ETH"
-# dataPath <- "D:\\Data\\IPOP\\SurveyData\\ETH\\2013\\Data"
-# wdPath <- "D:\\Dropbox\\Michiel_research\\2285000066 Africa Maize Yield Gap"
-# setwd(wdPath)
+if(Sys.info()["user"] == "Tomas"){
+  dataPath <- "C:/Users/Tomas/Documents/LEI/data/ETH/2013/Data"
+} else {
+  dataPath <- "N:/Internationaal Beleid  (IB)/Projecten/2285000066 Africa Maize Yield Gap/SurveyData/ETH/2013/Data"
+}
 
 library(haven)
-library(stringr)
+# library(stringr)
 library(dplyr)
 
 options(scipen=999)
 
+#######################################
+############## LOCATION ###############
+#######################################
+
+# file containing the zone, region and district
+
+location <- read_dta(file.path(dataPath, "Household/sect1_hh_w2.dta")) %>%
+  select(household_id2, REGCODE = saq01, ZONECODE = saq02, EA=saq07, rural) %>%
+  unique
+location$type <- factor(location$rural, levels=1:3, labels=c("RURAL", "SMALL TOWN", "LARGE TOWN"))
+location$rural <- ifelse(location$rural %in% 1, 1, 0)
+location$REGCODE <- as.integer(location$REGCODE)
+
+# match up with the names from the survey (prepared in a seperate file)
+
+REGZONE <- read.csv(file.path(paste0(dataPath,"/../../.."), "Other/Spatial/ETH/REGZONEETH.csv"))
+
+# join with household identifications
+location <- left_join(location, REGZONE)
+
+rm(REGZONE)
+
+#######################################
+########### SOCIO/ECONOMIC ############
+#######################################
+
+HH13 <- read_dta(file.path(dataPath, "Household/sect1_hh_w2.dta")) %>%
+  select(household_id2, individual_id, individual_id2,
+         ea_id, ea_id2, status=hh_s1q02, sex=hh_s1q03, age=hh_s1q04_a,
+         religion=hh_s1q07, marital=hh_s1q08)
+
+HH13$status <- toupper(as_factor(HH13$status))
+HH13$religion <- toupper(as_factor(HH13$religion))
+HH13$sex <- toupper(as_factor(HH13$sex)) 
+HH13$marital <- toupper(as_factor(HH13$marital)) 
+
+# make a new variable cage (cut age = cage) which splits
+# individuals according to their age group with
+# breaks at 15, 55 and the max age
+
+HH13$cage <- cut(HH13$age, breaks = c(0, 15, 55, max(HH13$age, na.rm=TRUE)),
+                 labels=c("0-15", "16-55", "56+"), include.lowest = TRUE, right = TRUE)
+
+# education of household members and sum
+# of education of all household members
+# between the ages of 15 and 55
+
+education <- read_dta(file.path(dataPath, "Household/sect2_hh_w2.dta")) %>%
+  select(household_id2, individual_id, individual_id2, ea_id, ea_id2,
+         literate=hh_s2q02, ed_any=hh_s2q03)
+
+education$literate <- toupper(as_factor(education$literate))
+education$ed_any <- toupper(as_factor(education$ed_any))
+
+# summarise the data: get sum of education
+# of household members 15-55 and number of
+# household members 15:55
+
+HH13_x <- group_by(HH13, household_id2) %>%
+  summarise(N1555=sum(cage %in% "16-55"),
+            family_size=n())
+
+# -------------------------------------
+# death in the family
+# -------------------------------------
+
+death <- read_dta(file.path(dataPath, "Household/sect8_hh_w2.dta")) %>%
+  select(household_id2, code=hh_s8q00, death=hh_s8q01) %>% 
+  filter(code %in% c("101", "101b")) %>% select(-code)
+death$death <- ifelse(death$death %in% 1, 1, 0)
+
+HH13 <- left_join(HH13, education) %>%
+  left_join(HH13_x) %>%
+  left_join(death); rm(education, HH13_x, death)
 
 #######################################
 ############### OUTPUT ################
 #######################################
 
-# WDswitch
-oput <- read_dta(file.path(dataPath, "ETH201314/Post-Harvest/sect9_ph_w2.dta")) %>%
-  dplyr::select(holder_id, household_id2, parcel_id, field_id,
-                crop=crop_code, qty=ph_s9q05)
+oput <- read_dta(file.path(dataPath, "/Post-Harvest/sect9_ph_w2.dta")) %>%
+  select(holder_id, household_id2, parcel_id, field_id,
+         crop_code, crop_qty_harv=ph_s9q05, inter_crop=ph_s9q01,
+         harv_area=ph_s9q09, harv_month_start=ph_s9q07_a, harv_month_end=ph_s9q07_b)
 
-oput$crop <- as_factor(oput$crop)
+oput$crop_name <- toupper(as_factor(oput$crop_code))
+oput$crop_code <- as.integer(oput$crop_code)
+oput$harv_month_start <- toupper(as_factor(oput$harv_month_start))
+oput$harv_month_end <- toupper(as_factor(oput$harv_month_end))
+oput$inter_crop <- toupper(as_factor(oput$inter_crop))
 
 # -------------------------------------
 # add a dummy if a legume was grown
@@ -34,16 +112,30 @@ legumes <- c("CHICK PEAS", "HARICOT BEANS", "HORSE BEANS", "LENTILS",
              "FIELD PEAS", "VETCH", "GIBTO", "SOYA BEANS", "CASTOR BEANS")
 
 oput_x <- group_by(oput, holder_id, household_id2, parcel_id, field_id) %>%
-  summarise(crop_count=sum(!is.na(crop)),
-            legume = ifelse(any(crop %in% legumes), 1, 0))
+  summarise(crop_count=sum(!is.na(crop_code)),
+            legume = ifelse(any(crop_code %in% legumes), 1, 0))
 
 oput <- left_join(oput, oput_x); rm(oput_x)
 
-# select on maize and remove observations with quantity NA or 0
-oput_maize <- oput[oput$crop %in% "MAIZE" & ! is.na(oput$qty) & !oput$qty %in% 0,]
-oput_maize <- dplyr::select(oput_maize, -crop)
+# remove observations with quantity NA or 0
+oput <- oput[! is.na(oput$crop_qty_harv) & !oput$crop_qty_harv %in% 0, ]
 
-rm("oput", "legumes")
+rm("legumes")
+
+# the price of each crop and how much was
+# sold is stored in a seperate section of 
+# the household (section 11)
+
+oput2 <- read_dta(file.path(dataPath, "/Post-Harvest/sect11_ph_w2.dta")) %>%
+  select(holder_id, household_id2, crop_code,
+         sold=ph_s11q01, sold_qty_kg=ph_s11q03_a, sold_qty_gr=ph_s11q03_b,
+         value=ph_s11q04, sold_month=ph_s11q06_a, sold_year=ph_s11q06_b,
+         trans_cost=ph_s11q09)
+oput2$crop_code <- as.integer(oput2$crop_code)
+oput2$sold_month <- toupper(as_factor(oput2$sold_month))
+oput2$sold <- toupper(as_factor(oput2$sold))
+
+oput <- left_join(oput, oput2) %>% unique
 
 #######################################
 ############## CHEMICAL ###############
@@ -54,13 +146,15 @@ rm("oput", "legumes")
 # and crop level
 
 # parcel level
-# WDswitch
-parcel <- read_dta(file.path(dataPath, "ETH201314/Post-Planting/sect2_pp_w2.dta")) %>%
-  dplyr::select(holder_id, household_id2, parcel_id, soil=pp_s2q14, soil_qlty=pp_s2q15)
+parcel <- read_dta(file.path(dataPath, "Post-Planting/sect2_pp_w2.dta")) %>%
+  dplyr::select(holder_id, household_id2, parcel_id, fields=pp_s2q02,
+                title=pp_s2q04, soil_type=pp_s2q14, soil_qlty=pp_s2q15)
 
-parcel$soil_type <- as_factor(parcel$soil_type)
-parcel$soil_qlty <- as_factor(parcel$soil_qlty)
+parcel$soil_type <- toupper(as_factor(parcel$soil_type))
+parcel$soil_qlty <- toupper(as_factor(parcel$soil_qlty))
+parcel$title <- toupper(as_factor(parcel$title))
 
+# -------------------------------------------------------------------------------------------------
 # field level variables
 # WDswitch
 
@@ -273,24 +367,7 @@ areas$area_gps_mi50 <- ifelse(areas$area_gps_mi50 %in% 0, NA, areas$area_gps_mi5
 areaTotal <- group_by(areas, household_id2) %>%
   summarise(area_tot = sum(area_gps_mi50, na.rm=TRUE))
   
-#######################################
-########### SOCIO/ECONOMIC ############
-#######################################
 
-# WDswitch
-se <- read_dta(file.path(dataPath, "ETH201314/Household/sect1_hh_w2.dta")) %>%
-  filter(hh_s1q02 %in% 1) %>% # 1 for head of household
-  dplyr::select(household_id2, sex=hh_s1q03, age=hh_s1q04_a,
-                rural)
-
-se$sex <- ifelse(se$sex %in% 2, 1, 0) # 1/0 female/male
-se$rural <- ifelse(se$rural %in% 1, 1, 0)
-
-# ownership of a parcel
-# WDswitch
-own <- read_dta(file.path(dataPath, "ETH201314/Post-Planting/sect2_pp_w2.dta")) %>%
-  dplyr::select(holder_id, household_id2, parcel_id, title=pp_s2q04)
-own$title <- ifelse(own$title %in% 1, 1, 0)  
   
 #######################################
 ########### CROSS SECTION #############
