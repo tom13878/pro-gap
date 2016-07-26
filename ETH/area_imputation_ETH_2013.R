@@ -5,7 +5,11 @@
 library(haven)
 library(dplyr)
 
-dataPath <- "C:/Users/Tomas/Documents/LEI/data/ETH"
+if(Sys.info()["user"] == "Tomas"){
+  dataPath <- "C:/Users/Tomas/Documents/LEI/data/ETH/2013/Data"
+} else {
+  dataPath <- "N:/Internationaal Beleid  (IB)/Projecten/2285000066 Africa Maize Yield Gap/SurveyData/ETH/2013/Data"
+}
 
 # -------------------------------------
 # plot characteristics
