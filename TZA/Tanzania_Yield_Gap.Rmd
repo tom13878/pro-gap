@@ -1,0 +1,203 @@
+---
+title: 'LSMS-ISA data: Tanzania Yield Gap Analysis'
+author: "Tomas Morley"
+date: "5 May 2016"
+output: pdf_document
+---
+```{r message=FALSE, echo=FALSE, warning=FALSE}
+dataPath <- "C:/Users/Tomas/Documents/LEI/"
+library(RColorBrewer)
+library(ggplot2)
+library(ggplot2)
+library(gridExtra) 
+library(dplyr)
+options(scipen=999)
+```
+
+# Introduction: The LSMS-ISA survey
+
+The Tanzania data is available for three survey waves corresponding to 2008-09, 2010-11 and 2012-13. The data was collected by the National Bureau of Statistics in Tanzania, in collaboration with international partners including DFID, the World Bank and the European Commission. The survey provides extensive coverage of a range of topics including agricultural production, consumption, health, and a number of socio-economic characteristics.
+
+The sample was designed to be representative at the national, urban, rural and agro-ecological zone levels. Clusters of households were selected across these levels of stratification. Rural clusters correspond roughly to a village while the urban clusters correspond to a street or MTAA (small urban area).
+
+## Geography of Tanzania
+
+Tanzania is split along several adminstrative zones. In figure ? the six zones of mainland Tanzania are shown, as well as the 21 mainland regions. In Figure ? the locations of the households in the 2010 wave are plotted against a map of the country.
+
+```{r eval=FALSE, message=FALSE, warning=FALSE, echo=FALSE, results="hide"}
+# source in the file where map data is created
+source(file.path(dataPath, "pro-gap/TZA/zoneRegHH_maps.R"))
+```
+
+```{r eval=FALSE, echo=FALSE, warning=FALSE, message=FALSE, label="map of regions and zones", fig.height=5}
+gg1 <- ggplot(tfmain) + 
+  geom_polygon(data=tfmain, aes(x=long, y=lat, group=group, fill=ZONE), colour="black", size = .1) +
+  coord_map("mercator") +
+  ggtitle("Zones and regions of Mainland Tanzania") +
+  scale_fill_manual(values = brewer.pal(n=8, name="Accent")) +
+  geom_text(data=coordsmain, aes(label = REGNAME, x = x, y = (y + 0.2))) +
+  geom_point(data=coordsmain, aes(x, y)) +
+  guides(fill=guide_legend(title=NULL))
+```
+
+```{r eval=FALSE, echo=FALSE, message=FALSE, warning=FALSE, label="gps locations of households TZA2010"}
+gg2 <- ggplot(tfmain) +
+  geom_polygon(data=tfmain, aes(x=long, y=lat, group=group), fill="white", colour="black", size = .1) +
+  coord_map("mercator") +
+  geom_point(data=geo10main, aes(x=lon, y=lat, color=factor(rural))) +
+  ggtitle("Location of households: mainland Tanzania") +
+  guides(color=guide_legend(title=NULL)) +
+  scale_color_discrete(labels=c("Urban", "Rural"))
+rm("tfmain", "geo10main", "coordsmain")
+```
+
+```{r, eval=FALSE, fig.align='center',fig.width=15,fig.height=20, echo=FALSE, message=FALSE, warning=FALSE}
+# make the plots on top of each other
+grid.arrange(gg1, gg2)
+```
+
+# The Tanzania maize yield gap database
+
+From the LSMS-ISA data we have obtained a sample of maize producing households. Table 1 shows a breakdown of the number of households, maize producing households and maize plots in each wave of the survey.
+
+```{r label="Source in all the combined data", echo=FALSE}
+source(file.path(dataPath, "pro-gap/TZA/data_combineTZA.R"))
+```
+
+```{r label="counts of farmers and plots for maize", echo=FALSE}
+# maize farmers
+maize <- filter(fullData1012, status == "HEAD", zaocode == 11) # 7055 plots in total
+
+# overall number of households
+households <- group_by(fullData, surveyyear) %>% 
+  summarise(n08 = length(unique(hhid2008)),
+            n10 = length(unique(hhid2010)),
+            n12 = length(unique(hhid2012))) 
+households <- diag(as.matrix(households[2:4]))
+
+# overall number of maize households
+maize_households <- group_by(maize, surveyyear) %>%
+  summarise(n08 = length(unique(hhid2008)),
+            n10 = length(unique(hhid2010)),
+            n12 = length(unique(hhid2012)))
+maize_households <- diag(as.matrix(maize_households[2:4]))
+
+# overall number of maize plots
+maize_plots <- group_by(maize, surveyyear) %>%
+  summarise(n08 = sum(!is.na(hhid2008)),
+            n10 = sum(!is.na(hhid2010)),
+            n12 = sum(!is.na(hhid2012)))
+maize_plots <- diag(as.matrix(maize_plots[2:4]))
+
+out <- cbind(households, maize_households, maize_plots)
+out <- as.data.frame(rbind(out, colSums(out)))
+row.names(out) <- c("wave 1: 2008-09", "wave 2: 2010-11", "wave 3: 2012-13", "TOTAL")
+names(out) <- c("households", "maize producing households", "maize plots")
+knitr::kable(out, caption="Overall Counts")
+
+rm( "households", "maize_households", "maize_plots","out" )
+```
+
+The primary outcome for the maize yield gap is maize yield. Maize yield and other variables central to our analysis are shown in table 2. Some variables have obvious outlying observations. 
+
+```{r echo=FALSE, label = "two functions for working with the data"}
+source(file.path(dataPath, "functions/summTabs.R"))
+source(file.path(dataPath, "functions/winsor.R"))
+```
+
+
+```{r echo = FALSE}
+vars <- c("rural", "death", "SACCO", "hybrd", "legume", "irrig", "manure", "pest",
+          "N", "P", "lab", "yld", "asset", "assetph", "area_tot")
+probs <- c(0.25, 0.5, 0.75, 0.9, 0.95)
+maize <- group_by(maize, surveyyear) %>%
+  mutate(yld = winsor(yld),
+         N = winsor(N),
+         asset = winsor(asset),
+         assetph = winsor(assetph),
+         area_tot = winsor(area_tot))
+maize$surveyyear <- as.character(maize$surveyyear)
+S <- summTabSplit(maize, vars, splitVar="surveyyear", unique(maize$surveyyear), probs)
+knitr::kable(round(S[["2008"]], 3), caption="summary stats 2008")
+knitr::kable(round(S[["2010"]], 3), caption="summary stats 2010")
+knitr::kable(round(S[["2012"]], 3), caption="summary stats 2012")
+rm("fullData", "fullData2", "maize", "probs", "S", "summTab",
+   "summTabSplit", "trim", "vars", "winsor", "winsor2" )
+```
+
+```{r eval=FALSE, echo=FALSE}
+par(mfrow=c(1, 2))
+with(GHA2010, {
+  hist(yld, breaks="FD", freq=FALSE, ylab="Density")
+  lines(density(yld), lwd=2)
+  lines(density(yld, adjust=0.5), lwd=1)
+  rug(yld)
+  box()
+})
+with(GHA2010, {
+  hist(log(yld), breaks="FD", freq=FALSE, ylab="Density")
+  lines(density(log(yld)), lwd=2)
+  lines(density(log(yld), adjust=0.5), lwd=1)
+  rug(log(yld))
+  box()
+})
+```
+
+# Mapping the data
+
+Mapping the data reveals spatial patterns more readily than in tables. In the following maps three key variables are explored spatially across each year of the survey. For the first variable, yield (yld), we see that the majority of the maize production is centered in the Southern Highlands and Southern zones. There are also farmers in the Northern zone who appear to produce higher maize yields, particularly in the Kilimanjaro Region. This conforms with other studies of maize production in Tanzania.
+
+```{r eval=FALSE, echo=FALSE, label="read in the map data", results="hide", warning=FALSE, message=FALSE}
+source(file.path(dataPath, "pro-gap/TZA/match_and_mapTZA.R"))
+```
+
+```{r eval=FALSE, echo=FALSE, label="yield in TZA data across years"}
+gg3 <- ggplot(tf) + 
+  geom_polygon(data=tf, aes_string(x="long", y="lat", group="group", fill="yld"), colour="black", size = .1) +
+   coord_map("mercator") + ggtitle("Yield (kg/ha)") +
+   facet_wrap( ~ surveyyear, nrow=1, ncol=3) +
+   theme(legend.position="bottom") +
+   scale_fill_gradientn(colours=c("#ffffff", brewer.pal(n=9, name="Oranges")),
+                      na.value="#ffffff")
+```
+
+```{r eval=FALSE, echo=FALSE, label="Nitrogen in TZA data across years"}
+gg4 <- ggplot(tf) + 
+  geom_polygon(data=tf, aes_string(x="long", y="lat", group="group", fill="N"), colour="black", size = .1) +
+   coord_map("mercator") + ggtitle("Nitrogen (kg/ha)") +
+   facet_wrap( ~ surveyyear, nrow=1, ncol=3) +
+   theme(legend.position="bottom") +
+   scale_fill_gradientn(colours=c("#ffffff", brewer.pal(n=9, name="Greys")),
+                      na.value="#ffffff")
+```
+
+```{r eval=FALSE, echo=FALSE, label="assets in TZA data across years"}
+gg5 <- ggplot(tf) + 
+  geom_polygon(data=tf, aes_string(x="long", y="lat", group="group", fill="assetph"), colour="black", size = .1) +
+   coord_map("mercator") + ggtitle("log Assets (Tsh/ha)") +
+   facet_wrap( ~ surveyyear, nrow=1, ncol=3) +
+   theme(legend.position="bottom") +
+   scale_fill_gradientn(colours=c("#ffffff", brewer.pal(n=9, name="Reds")),
+                      na.value="#ffffff")
+rm(tf)
+```
+
+```{r eval=FALSE, echo=FALSE, warning=FALSE, message = FALSE, fig.align='center', fig.width=15, fig.height=20}
+grid.arrange(gg3, gg4, gg5, nrow=3, ncol=1)
+```
+
+# Appendix 1: Codebook
+
+```{r eval=FALSE, echo=FALSE, message=FALSE, warning=FALSE}
+# read in the codebook
+codebook <- read.csv(file.path(dataPath, "CodeBook_v20160610.csv")) %>%
+  select(Code, Source, TZA_2008, TZA_2010, TZA_2012)
+codebook$Code <- zap_empty(as.character(codebook$Code))
+codebook$Source <- zap_empty(as.character(codebook$Source))
+codebook$TZA_2008 <- zap_empty(as.character(codebook$TZA_2008))
+codebook$TZA_2010 <- zap_empty(as.character(codebook$TZA_2010))
+codebook$TZA_2012 <- zap_empty(as.character(codebook$TZA_2012))
+codebook <- na.omit(codebook)
+row.names(codebook) <- 1:nrow(codebook)
+knitr::kable(codebook)
+```
