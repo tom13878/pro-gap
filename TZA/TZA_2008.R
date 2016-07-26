@@ -327,16 +327,16 @@ rm("LR", "SR", "lvstock_x", "lvstock_y", "OTHER", "PIGS", "POULTRY")
 
 # only 25% of the areas are GPS measured.
 land <- read_dta(file.path(dataPath, "/TZNPS1AGDTA_E/SEC_2A.dta")) %>%
-  rename(area_sr = s2aq4, area_gps = area)
+  rename(area_farmer = s2aq4, area_gps = area)
 
 # measurements are in acres -> change to hectacres
-land$areas_gps <- land$area_gps*0.404686
-land$area_sr <- land$area_sr*0.404686
+land$area_gps <- land$area_gps*0.404686
+land$area_farmer <- land$area_farmer*0.404686
 
 # where a gps measurement is missing, replace
 # with farmer estimate
 
-land$area <- ifelse(is.na(land$area_gps), land$area_sr, land$area_gps)
+land$area <- ifelse(is.na(land$area_gps), land$area_farmer, land$area_gps)
 land$area <- ifelse(land$area %in% 0, NA, land$area)
 
 # create variable for ownership of the land

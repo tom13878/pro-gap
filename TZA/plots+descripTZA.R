@@ -8,7 +8,7 @@ dataPath <- "C:/Users/Tomas/Documents/LEI"
 library(ggplot2)
 
 # read in the preprocessed data from the file called
-# data_combine.R. This file binds all the data together
+# data_combineTZA.R. This file binds all the data together
 # and also contains individual datasets for each of the
 # three waves
 
