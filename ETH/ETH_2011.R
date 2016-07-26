@@ -2,7 +2,11 @@
 # Ethiopia data 2011 - 2012 survey
 # -------------------------------------
 
-dataPath <- "C:/Users/Tomas/Documents/LEI/data/ETH"
+if(Sys.info()["user"] == "Tomas"){
+  dataPath <- "C:/Users/Tomas/Documents/LEI/data/ETH/2011/Data"
+} else {
+  dataPath <- "N:/Internationaal Beleid  (IB)/Projecten/2285000066 Africa Maize Yield Gap/SurveyData/ETH/2011/Data"
+}
 
 library(haven)
 library(stringr)
@@ -10,15 +14,24 @@ library(dplyr)
 
 options(scipen=999)
 
-oput <- read_dta(file.path(dataPath, "ETH201011/sect9_ph_w1.dta")) %>%
-  dplyr::select(holder_id, household_id, parcel_id, field_id,
-                crop=crop_code, qty_kg=ph_s9q12_a, qty_gr=ph_s9q12_b)
+#######################################
+############## LOCATION ###############
+#######################################
 
-oput$crop <- as_factor(oput$crop)
+# file containing the zone, region and district
 
-# check how many plots have maize grown on them -> 1110 maize plots with maize on them
-oput_maize <- group_by(oput, holder_id, household_id, parcel_id, field_id) %>%
-  summarise(maize=any(crop %in% "MAIZE"))
+location <- read_dta(file.path(dataPath, "Household/sect1_hh_w2.dta")) %>%
+  select(household_id2, REGCODE = saq01, ZONECODE = saq02, EA=saq07, rural) %>%
+  unique
+location$type <- factor(location$rural, levels=1:3, labels=c("RURAL", "SMALL TOWN", "LARGE TOWN"))
+location$rural <- ifelse(location$rural %in% 1, 1, 0)
+location$REGCODE <- as.integer(location$REGCODE)
 
-oput_maize2 <- filter(oput, crop %in% "MAIZE") 
-sum(is.na(oput_maize2$qty_kg) & is.na(oput_maize2$qty_gr)) # 447 plots with no record
+# match up with the names from the survey (prepared in a seperate file)
+
+REGZONE <- read.csv(file.path(paste0(dataPath,"/../../.."), "Other/Spatial/ETH/REGZONEETH.csv"))
+
+# join with household identifications
+location <- left_join(location, REGZONE)
+
+rm(REGZONE)

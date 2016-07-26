@@ -9,7 +9,6 @@ if(Sys.info()["user"] == "Tomas"){
 }
 
 library(haven)
-# library(stringr)
 library(dplyr)
 
 options(scipen=999)
@@ -21,7 +20,7 @@ options(scipen=999)
 # file containing the zone, region and district
 
 location <- read_dta(file.path(dataPath, "Household/sect1_hh_w2.dta")) %>%
-  select(household_id2, REGCODE = saq01, ZONECODE = saq02, EA=saq07, rural) %>%
+  select(household_id2, REGCODE = saq01, ZONECODE = saq02, ea_id2, rural) %>%
   unique
 location$type <- factor(location$rural, levels=1:3, labels=c("RURAL", "SMALL TOWN", "LARGE TOWN"))
 location$rural <- ifelse(location$rural %in% 1, 1, 0)
@@ -41,7 +40,7 @@ rm(REGZONE)
 #######################################
 
 HH13 <- read_dta(file.path(dataPath, "Household/sect1_hh_w2.dta")) %>%
-  select(household_id2, individual_id, individual_id2,
+  select(household_id, household_id2, individual_id, individual_id2,
          ea_id, ea_id2, status=hh_s1q02, sex=hh_s1q03, age=hh_s1q04_a,
          religion=hh_s1q07, marital=hh_s1q08)
 
@@ -135,7 +134,7 @@ oput2$crop_code <- as.integer(oput2$crop_code)
 oput2$sold_month <- toupper(as_factor(oput2$sold_month))
 oput2$sold <- toupper(as_factor(oput2$sold))
 
-oput <- left_join(oput, oput2) %>% unique
+oput <- left_join(oput, oput2) %>% unique; rm(oput2)
 
 #######################################
 ############## CHEMICAL ###############
@@ -154,61 +153,43 @@ parcel$soil_type <- toupper(as_factor(parcel$soil_type))
 parcel$soil_qlty <- toupper(as_factor(parcel$soil_qlty))
 parcel$title <- toupper(as_factor(parcel$title))
 
-# -------------------------------------------------------------------------------------------------
 # field level variables
 # WDswitch
 
-field <- read_dta(file.path(dataPath, "ETH201314/Post-Planting/sect3_pp_w2.dta")) %>%
+field <- read_dta(file.path(dataPath, "Post-Planting/sect3_pp_w2.dta")) %>%
   dplyr::select(holder_id, household_id2, parcel_id, field_id,
-                inter_crop=pp_s3q03b, fallow10=pp_s3q03c, fallow_year=pp_s3q03d,
+                crop_stand=pp_s3q03b, fallow10=pp_s3q03c, fallow_year=pp_s3q03d,
                 extension=pp_s3q11, irrig=pp_s3q12, fert_any=pp_s3q14,
                 other_inorg=pp_s3q20a, manure=pp_s3q21, compost=pp_s3q23,
                 other_org=pp_s3q25, eros_prot=pp_s3q32, mulch=pp_s3q37) 
 
-field$inter_crop <- ifelse(field$inter_crop %in% 2, 1, 0)
-field$fallow10 <- ifelse(field$fallow10 %in% 1, 1, 0)
-field$extension <- ifelse(field$extension %in% 1, 1, 0)
-field$irrig <- ifelse(field$irrig %in% 1, 1, 0)
-field$fert_any <- ifelse(field$fert_any %in% 1, 1, 0)
-field$other_inorg <- ifelse(field$other_inorg %in% 1, 1, 0)
-field$manure <- ifelse(field$manure %in% 1, 1, 0)
-field$compost <- ifelse(field$compost %in% 1, 1, 0)
-field$other_org <- ifelse(field$other_org %in% 1, 1, 0)
-field$eros_prot <- ifelse(field$eros_prot %in% 1, 1, 0)
-field$mulch <- ifelse(field$mulch %in% 1, 1, 0)
+field$crop_stand <- as_factor(field$crop_stand)
 
 # crop level variables
 # WDswitch
 
-crop <- read_dta(file.path(dataPath, "ETH201314/Post-Planting/sect4_pp_w2.dta")) %>%
-  dplyr::select(holder_id, household_id2, parcel_id, field_id, crop=crop_code,
+crop <- read_dta(file.path(dataPath, "/Post-Planting/sect4_pp_w2.dta")) %>%
+  dplyr::select(holder_id, household_id2, parcel_id, field_id, crop_code,
                 cropping=pp_s4q02, month=pp_s4q12_a, crop_area=pp_s4q03,
                 herb=pp_s4q06, fung=pp_s4q07, seed_type=pp_s4q11, 
                 seed_qty=pp_s4q11b)
 
-crop$crop <- as_factor(crop$crop)
+crop$crop_code <- as_factor(crop$crop_code)
 crop$cropping <- as_factor(crop$cropping)
 crop$month <- as_factor(crop$month)
-crop$herb <- ifelse(crop$herb %in% 1, 1, 0)
-crop$fung <- ifelse(crop$fung %in% 1, 1, 0)
-crop$seed_type <- ifelse(crop$seed_type %in% 2, 1, 0)
-
-# select only maize crops
-crop <- filter(crop, crop %in% "MAIZE") %>% select(-crop)
+crop$crop_code <- as.integer(crop$crop_code)
 
 # -------------------------------------
 # unit of observation is not fertilizer
-# WDswitch
 
-fert1 <- read_dta(file.path(dataPath, "ETH201314/Post-Planting/sect3_pp_w2.dta")) %>%
+fert1 <- read_dta(file.path(dataPath, "/Post-Planting/sect3_pp_w2.dta")) %>%
   dplyr::select(holder_id, household_id2, parcel_id, field_id, typ=pp_s3q15, qty=pp_s3q16_a,
                 purch=pp_s3q16b, purch_kg=pp_s3q16c, valu=pp_s3q16d)
   
 fert1$typ <- ifelse(fert1$typ %in% 1, "UREA", NA)
 fert1$purch <- ifelse(fert1$purch %in% 1, 1, 0)
 
-# WDswitch  
-fert2 <- read_dta(file.path(dataPath, "ETH201314/Post-Planting/sect3_pp_w2.dta")) %>%
+fert2 <- read_dta(file.path(dataPath, "/Post-Planting/sect3_pp_w2.dta")) %>%
   dplyr::select(holder_id, household_id2, parcel_id, field_id, typ=pp_s3q18, qty=pp_s3q19_a,
                 purch=pp_s3q19b, purch_kg=pp_s3q19c, valu=pp_s3q19d) 
 
@@ -218,10 +199,9 @@ fert2$purch <- ifelse(fert2$purch %in% 1, 1, 0)
 # -------------------------------------
 # read in nitrogen conversion file
 
-conv <- read.csv(paste(dataPath, "Fert_comp.csv", sep="/")) %>%
+conv <- read.csv(file.path(paste0(dataPath,"/../../.."), "Other/Fertilizer/Fert_comp.csv")) %>%
   transmute(typ=Fert_type2, n=N_share/100, p=P_share/100) %>%
   filter(typ %in% c("UREA", "DAP"))
-
 
 fert1 <- left_join(fert1, conv)
 fert2 <- left_join(fert2, conv)
@@ -266,8 +246,7 @@ rm(fert1, fert2, conv)
 #######################################
 
 # POST PLANTING labour
-# WDswitch
-pp_lab <- read_dta(file.path(dataPath, "ETH201314/Post-Planting/sect3_pp_w2.dta")) %>%
+pp_lab <- read_dta(file.path(dataPath, "/Post-Planting/sect3_pp_w2.dta")) %>%
   dplyr::select(holder_id, household_id2, parcel_id, field_id, pp_s3q27_a:pp_s3q29_f) %>%
   transmute(holder_id, household_id2, parcel_id, field_id,
             id1=pp_s3q27_a, lab1=pp_s3q27_b*pp_s3q27_c,
@@ -300,11 +279,10 @@ pp_lab <- transmute(pp_lab, holder_id, household_id2, parcel_id, field_id,
 pp_lab$plant_lab[pp_lab$plant_lab %in% 0] <- NA
 
 # POST HARVEST
-# WDswitch
-ph_lab <- read_dta(file.path(dataPath, "ETH201314/Post-Harvest/sect10_ph_w2.dta")) %>%
+ph_lab <- read_dta(file.path(dataPath, "/Post-Harvest/sect10_ph_w2.dta")) %>%
   dplyr::select(holder_id, household_id2, parcel_id, field_id,
-                crop=crop_code, ph_s10q01_a:ph_s10q03_f) %>%
-  transmute(holder_id, household_id2, parcel_id, field_id, crop,
+                crop_code, ph_s10q01_a:ph_s10q03_f) %>%
+  transmute(holder_id, household_id2, parcel_id, field_id, crop_code,
             id1=ph_s10q02_a, lab1=ph_s10q02_b*ph_s10q02_c,
             id2=ph_s10q02_e, lab2=ph_s10q02_f*ph_s10q02_g,
             id3=ph_s10q02_i, lab3=ph_s10q02_j*ph_s10q02_k,
@@ -318,20 +296,13 @@ ph_lab <- read_dta(file.path(dataPath, "ETH201314/Post-Harvest/sect10_ph_w2.dta"
   )
 
 # -------------------------------------
-# filter for maize crops only because
-# the post harvest labour is recorded
-# at the crop level
-
-ph_lab$crop <- as_factor(ph_lab$crop)
-ph_lab <- filter(ph_lab, crop %in% "MAIZE") %>% select(-crop)
-
 # make all NA values zero
 ph_lab[is.na(ph_lab)] <- 0
 
 # sum all labour across a single plot - all measured in days
 ph_lab <- transmute(ph_lab, holder_id, household_id2, parcel_id, field_id,
-                  harv_lab=lab1 + lab2 + lab3 + lab4 +
-                    hirM + hirF + hirC + OHHlabM + OHHlabF + OHHlabC) 
+                    crop_code, harv_lab=lab1 + lab2 + lab3 + lab4 +
+                    hirM + hirF + hirC + OHHlabM + OHHlabF + OHHlabC) %>% unique
 
 ph_lab$harv_lab[ph_lab$harv_lab %in% 0] <- NA
 
@@ -339,14 +310,14 @@ ph_lab$harv_lab[ph_lab$harv_lab %in% 0] <- NA
 ############### GEO ###################
 #######################################
 
-# WDswitch
-load(file.path(dataPath, "ETH201314/ETH_geo_total_2013.RData"))
+load(file.path(dataPath, "/ETH_geo_total_2013.RData"))
 geo <- geo.total.plot %>% 
   dplyr::select(holder_id, household_id2, ea_id2, parcel_id, field_id, lon, lat, SPEI, RootDepth, region=NAME_1,
                 AEZ=ssa_aez09, ph=ph_sd1_sd3, ph2=ph_sd1_sd5,
                 SOC=SOC_sd1_sd3, SOC2=SOC_sd1_sd5, rain=gsRainfall, 
                 YA, YW, YP, everything()) %>%
   unique()
+rm(geo.total.plot)
 
 #######################################
 ############### AREAs #################
@@ -355,8 +326,8 @@ geo <- geo.total.plot %>%
 # -------------------------------------
 # imputed and original gps measurements
 # included
-# WDswitch
-areas <- read_dta(paste(dataPath, "ETH201314/areas_ETH2013.dta", sep="/"))
+
+areas <- read_dta(paste(dataPath, "areas_ETH2013.dta", sep="/"))
 areas <- select(areas, holder_id, household_id2,
                 parcel_id, field_id, area_gps, area_gps_mi50,
                 area_farmer=area_sr)
@@ -366,54 +337,76 @@ areas$area_gps_mi50 <- ifelse(areas$area_gps_mi50 %in% 0, NA, areas$area_gps_mi5
 
 areaTotal <- group_by(areas, household_id2) %>%
   summarise(area_tot = sum(area_gps_mi50, na.rm=TRUE))
-  
 
+#######################################
+############## COMMUNITY ##############
+#######################################
   
+com3 <- read_dta(file.path(dataPath, "Community/sect3_com_w2.dta")) %>%
+  select(ea_id2, popEA=cs3q02, HHEA=cs3q03)
+
+com4 <- read_dta(file.path(dataPath, "Community/sect4_com_w2.dta")) %>%
+  select(ea_id2, road=cs4q01, cost2small_town=cs4q10,
+         cost2large_town=cs4q13, bank=cs4q45, micro_finance=cs4q47)
+
+com4$road <- toupper(as_factor(com4$road))
+com4$bank <- toupper(as_factor(com4$bank))
+com4$micro_finance <- toupper(as_factor(com4$micro_finance))
+
+com6 <- read_dta(file.path(dataPath, "Community/sect6_com_w2.dta")) %>%
+  select(ea_id2, plant_month1=cs6q03_a, plant_month2=cs6q03_b, plant_month3=cs6q03_c,
+         harv_month1=cs6q04_a, harv_month2=cs6q04_b, harv_month3=cs6q04_c,
+         ext_agent=cs6q08, dist2ext_agent=cs6q09, fert_source=cs6q12,
+         pest_source=cs6q13, seed_source=cs6q14)
+
+# make a seperate file for month data
+com6$plant_month1 <- as_factor(com6$plant_month1)
+com6$plant_month2 <- as_factor(com6$plant_month2)
+com6$plant_month3 <- as_factor(com6$plant_month3)
+com6$harv_month1 <- as_factor(com6$harv_month1)
+com6$harv_month2 <- as_factor(com6$harv_month2)
+com6$harv_month3 <- as_factor(com6$harv_month3)
+com6$ext_agent <- as_factor(com6$ext_agent)
+com6$fert_source <- as_factor(com6$fert_source)
+com6$pest_source <- as_factor(com6$pest_source)
+com6$seed_source <- as_factor(com6$seed_source)
+
+com <- left_join(com3, com4) %>% left_join(com6)
+rm(com3, com4, com6)
+
 #######################################
 ########### CROSS SECTION #############
 #######################################
 
 # -------------------------------------
-# crop level joins
+# community and location level joins
 
-ETH2013 <- left_join(oput_maize, crop) 
-ETH2013 <- left_join(ETH2013, ph_lab)
-
-# -------------------------------------
-# field level joins
-
-ETH2013 <- left_join(ETH2013, fert) 
-ETH2013 <- left_join(ETH2013, areas)
-ETH2013 <- left_join(ETH2013, pp_lab) 
-ETH2013 <- left_join(ETH2013, field)
-
-# -------------------------------------
-# parcel level joins
-
-ETH2013 <- left_join(ETH2013, parcel)
-ETH2013 <- left_join(ETH2013, own) 
+ETH2013 <- left_join(location, com); rm(com, location)
 
 # -------------------------------------
 # household level joins
 
-ETH2013 <- left_join(ETH2013, se)
-ETH2013 <- left_join(ETH2013, areaTotal)
-ETH2013 <- left_join(ETH2013, geo)
+ETH2013 <- left_join(HH13, ETH2013); rm(HH13) 
+ETH2013 <- left_join(ETH2013, areaTotal); rm(areaTotal)
 
 # -------------------------------------
-# Make some new variables
+# parcel level joins
+
+ETH2013 <- left_join(ETH2013, parcel); rm(parcel)
+
 # -------------------------------------
+# field level joins
 
-# per hectacre
-ETH2013 <- mutate(ETH2013,
-              yld=qty/area_gps_mi50,
-              N=N/area_gps_mi50,
-              P=P/area_gps_mi50
-)
+ETH2013 <- left_join(ETH2013, fert); rm(fert) 
+ETH2013 <- left_join(ETH2013, areas); rm(areas)
+ETH2013 <- left_join(ETH2013, pp_lab); rm(pp_lab)
+ETH2013 <- left_join(ETH2013, field); rm(field)
+ETH2013 <- left_join(ETH2013, geo); rm(geo)
 
-# squared values
+# -------------------------------------
+# crop level joins
+ETH2013 <- left_join(ETH2013, oput); rm(oput)
+ETH2013 <- left_join(ETH2013, crop); rm(crop)
+ETH2013 <- left_join(ETH2013, ph_lab); rm(ph_lab)
 
-rm(list=ls()[!ls() %in% "ETH2013"])
-
-# save to file
-# save(ETH2013, file=".\\Analysis\\ETH\\Data\\ETH2013_data.RData")
+rm(dataPath, F)
