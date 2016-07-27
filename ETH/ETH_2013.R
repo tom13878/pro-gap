@@ -81,8 +81,9 @@ HH13_x <- group_by(HH13, household_id2) %>%
 
 death <- read_dta(file.path(dataPath, "Household/sect8_hh_w2.dta")) %>%
   select(household_id2, code=hh_s8q00, death=hh_s8q01) %>% 
-  filter(code %in% c("101", "101b")) %>% select(-code)
-death$death <- ifelse(death$death %in% 1, 1, 0)
+  filter(code %in% c("101", "101b")) %>% select(-code) %>%
+  group_by(household_id2) %>%
+  summarise(death=ifelse(any(death %in% 1), 1, 0))
 
 HH13 <- left_join(HH13, education) %>%
   left_join(HH13_x) %>%

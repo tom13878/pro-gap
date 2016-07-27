@@ -1,17 +1,19 @@
 # Ethiopia exploratory analysis as you go
+library(reshape2)
 library(dplyr)
+
 x <- left_join(HH13, location)
 
 # basic counts -> match the codebook
 count1 <- group_by(location, REGNAME, ZONENAME, type) %>% summarise(n=n()) %>%
   dcast(REGNAME + ZONENAME ~ type, fill=0)
-names(count1)[3:5] <- paste(names(count1)[3:5], "HH", sep=" ")
-count2 <- select(location, -household_id, -household_id2) %>% unique %>%
+names(count1)[3:4] <- paste(names(count1)[3:4], "HH", sep=" ")
+count2 <- select(location, -household_id, -household_id) %>% unique %>%
   group_by(REGNAME, ZONENAME, type) %>% summarise(n=n()) %>%
   dcast(REGNAME + ZONENAME ~ type, fill=0)
-names(count2)[3:5] <- paste(names(count2)[3:5], "EA", sep=" ")
+names(count2)[3:4] <- paste(names(count2)[3:4], "EA", sep=" ")
 count <- left_join(count1, count2)
-count <- count[c(1, 2, 6, 3, 7, 4, 8, 5)]
+count <- count[c(1, 2, 5, 3, 6, 4)]
 
 # religion
 round(table(x$REGNAME, x$religion)/rowSums(table(x$REGNAME, x$religion))*100,2)
