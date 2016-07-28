@@ -8,8 +8,6 @@
 # changes that were made to the data
 # -------------------------------------
 
-options(warn=-1)
-
 if(Sys.info()["user"] == "Tomas"){
   path2Data <- "C:/Users/Tomas/Documents/LEI/pro-gap/TZA/"
 } else {
@@ -42,10 +40,6 @@ TZA2012$N <- ifelse(is.na(TZA2012$N), 0, TZA2012$N) # assume NA -> no nitrogen
 TZA2012$P <- ifelse(is.na(TZA2012$P), 0, TZA2012$P) # assume NA -> no Phosphorous
 TZA2012$pest <- ifelse(TZA2012$pest %in% 1, 1, 0) # assume NA -> no pesticide
 TZA2012$trans <- ifelse(TZA2012$trans %in% 1, 1, 0) # assume NA -> no transportation for crop
-
-# add final variables
-
-TZA2012 <- mutate(TZA2012, surveyyear=2012)
 
 rm("path2Data")
 

@@ -409,6 +409,6 @@ TZA2008 <- left_join(TZA2008, lab); rm(lab)
 TZA2008 <- left_join(TZA2008, land); rm(land)
 
 TZA2008 <- rename(TZA2008, hhid2008=hhid)
-
+TZA2008 <- mutate(TZA2008, surveyyear=2008) 
 
 rm("ext", "bad", "dataPath")

@@ -37,10 +37,6 @@ TZA2008$P <- ifelse(is.na(TZA2008$P), 0, TZA2008$P) # assume NA -> no Phosphorou
 TZA2008$pest <- ifelse(TZA2008$pest %in% 1, 1, 0) # assume NA -> no pesticide
 TZA2008$trans <- ifelse(TZA2008$trans %in% 1, 1, 0) # assume NA -> no transportation for crop
 
-# add final variables
-
-TZA2008 <- mutate(TZA2008, surveyyear=2008) 
-
 rm("path2Data")
 
 
