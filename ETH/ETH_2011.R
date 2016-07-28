@@ -91,21 +91,24 @@ death <- read_dta(file.path(dataPath, "sect8_hh_w1.dta")) %>%
 HH11 <- left_join(HH11, education) %>%
   left_join(HH11_x) %>%
   left_join(death); rm(education, HH11_x, death)
----------------------------------------------------------------------------------------------------
+
 #######################################
 ############### OUTPUT ################
 #######################################
 
-oput <- read_dta(file.path(dataPath, "/Post-Harvest/sect9_ph_w2.dta")) %>%
-  select(holder_id, household_id2, parcel_id, field_id,
-         crop_code, crop_qty_harv=ph_s9q05, inter_crop=ph_s9q01,
-         harv_area=ph_s9q09, harv_month_start=ph_s9q07_a, harv_month_end=ph_s9q07_b)
+oput <- read_dta(file.path(dataPath, "sect9_ph_w1.dta")) %>%
+  select(household_id, holder_id, parcel_id, field_id,
+         crop_code, day_cut=ph_s9q02_a, month_cut=ph_s9q02_b,
+         crop_qty_harv_fresh_kg=ph_s9q03_a,
+         crop_qty_harv_fresh_g=ph_s9q03_b,
+         crop_qty_harv_dry_kg=ph_s9q05_a,
+         crop_qty_harv_dry_g=ph_s9q05_b,
+         crop_qty_harv_tot_kg=ph_s9q12_a,
+         crop_qty_harv_tot_g=ph_s9q12_b,
+         harv_month_start=ph_s9q13_a,
+         harv_month_end=ph_s9q13_b, crop_name)
 
-oput$crop_name <- toupper(as_factor(oput$crop_code))
 oput$crop_code <- as.integer(oput$crop_code)
-oput$harv_month_start <- toupper(as_factor(oput$harv_month_start))
-oput$harv_month_end <- toupper(as_factor(oput$harv_month_end))
-oput$inter_crop <- toupper(as_factor(oput$inter_crop))
 
 # -------------------------------------
 # add a dummy if a legume was grown
@@ -149,39 +152,38 @@ oput <- left_join(oput, oput2) %>% unique; rm(oput2)
 # and crop level
 
 # parcel level
-parcel <- read_dta(file.path(dataPath, "Post-Planting/sect2_pp_w2.dta")) %>%
-  dplyr::select(holder_id, household_id2, parcel_id, fields=pp_s2q02,
-                title=pp_s2q04, soil_type=pp_s2q14, soil_qlty=pp_s2q15)
+parcel <- read_dta(file.path(dataPath, "sect2_pp_w1.dta")) %>%
+  select(household_id, holder_id, parcel_id, fields=pp_s2q02,
+                title=pp_s2q04)
 
-parcel$soil_type <- toupper(as_factor(parcel$soil_type))
-parcel$soil_qlty <- toupper(as_factor(parcel$soil_qlty))
 parcel$title <- toupper(as_factor(parcel$title))
 
 # field level variables
-# WDswitch
 
-field <- read_dta(file.path(dataPath, "Post-Planting/sect3_pp_w2.dta")) %>%
-  dplyr::select(holder_id, household_id2, parcel_id, field_id,
-                crop_stand=pp_s3q03b, fallow10=pp_s3q03c, fallow_year=pp_s3q03d,
+field <- read_dta(file.path(dataPath, "sect3_pp_w1.dta")) %>%
+  select(holder_id, household_id, parcel_id, field_id,
+                crop_stand=pp_s3q10,
                 extension=pp_s3q11, irrig=pp_s3q12, fert_any=pp_s3q14,
-                other_inorg=pp_s3q20a, manure=pp_s3q21, compost=pp_s3q23,
-                other_org=pp_s3q25, eros_prot=pp_s3q32, mulch=pp_s3q37) 
+                manure=pp_s3q21, compost=pp_s3q23,
+                other_org=pp_s3q25) 
 
-field$crop_stand <- as_factor(field$crop_stand)
+field$crop_stand <- toupper(as_factor(field$crop_stand))
 
 # crop level variables
 # WDswitch
 
-crop <- read_dta(file.path(dataPath, "/Post-Planting/sect4_pp_w2.dta")) %>%
-  dplyr::select(holder_id, household_id2, parcel_id, field_id, crop_code,
-                cropping=pp_s4q02, month=pp_s4q12_a, crop_area=pp_s4q03,
-                herb=pp_s4q06, fung=pp_s4q07, seed_type=pp_s4q11, 
-                seed_qty=pp_s4q11b)
+crop <- read_dta(file.path(dataPath, "sect4_pp_w1.dta")) %>%
+  select(household_id, holder_id, parcel_id, field_id, crop_code,
+         cropping=pp_s4q02, month=pp_s4q12_a, crop_area=pp_s4q03,
+         pest=pp_s4q06, herb=pp_s4q06, fung=pp_s4q07, seed_type=pp_s4q11,
+        crop_name)
 
-crop$crop_code <- as_factor(crop$crop_code)
 crop$cropping <- as_factor(crop$cropping)
 crop$month <- as_factor(crop$month)
 crop$crop_code <- as.integer(crop$crop_code)
+
+# ADD THE SEED ROSTER
+
 
 # -------------------------------------
 # unit of observation is not fertilizer
