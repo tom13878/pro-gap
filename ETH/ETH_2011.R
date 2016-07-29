@@ -96,35 +96,52 @@ HH11 <- left_join(HH11, education) %>%
 ############### OUTPUT ################
 #######################################
 
+# in the 2011 wave of the data, the respondents
+# were asked about the output per 2 metre by 2 metre
+# area. They were also asked how much the total field
+# produced.
+
 oput <- read_dta(file.path(dataPath, "sect9_ph_w1.dta")) %>%
-  select(household_id, holder_id, parcel_id, field_id,
+  transmute(household_id, holder_id, parcel_id, field_id,
          crop_code, day_cut=ph_s9q02_a, month_cut=ph_s9q02_b,
          crop_qty_harv_fresh_kg=ph_s9q03_a,
-         crop_qty_harv_fresh_g=ph_s9q03_b,
+         crop_qty_harv_fresh_g=ph_s9q03_b/100,
          crop_qty_harv_dry_kg=ph_s9q05_a,
-         crop_qty_harv_dry_g=ph_s9q05_b,
+         crop_qty_harv_dry_g=ph_s9q05_b/100,
          crop_qty_harv_tot_kg=ph_s9q12_a,
-         crop_qty_harv_tot_g=ph_s9q12_b,
+         crop_qty_harv_tot_g=ph_s9q12_b/100,
          harv_month_start=ph_s9q13_a,
          harv_month_end=ph_s9q13_b, crop_name)
 
 oput$crop_code <- as.integer(oput$crop_code)
+x <- c("crop_qty_harv_fresh_kg","crop_qty_harv_fresh_g","crop_qty_harv_dry_kg",
+       "crop_qty_harv_dry_g","crop_qty_harv_tot_kg","crop_qty_harv_tot_g")
+make0 <- is.na(oput[, x])
+oput[, x][make0] <- 0
+
+oput <- transmute(oput, household_id, holder_id, parcel_id, field_id,
+                  crop_code, day_cut, month_cut, 
+                  crop_qty_harv_fresh=crop_qty_harv_fresh_kg+crop_qty_harv_fresh_g,
+                  crop_qty_harv_dry=crop_qty_harv_dry_kg+crop_qty_harv_dry_g,
+                  crop_qty_harv_tot=crop_qty_harv_tot_kg+crop_qty_harv_tot_g,
+                  crop_name)
 
 # -------------------------------------
 # add a dummy if a legume was grown
 # count number of crops per field
+# crop codes taken from appendix in 
+# the BID
 
-legumes <- c("CHICK PEAS", "HARICOT BEANS", "HORSE BEANS", "LENTILS",
-             "FIELD PEAS", "VETCH", "GIBTO", "SOYA BEANS", "CASTOR BEANS")
+legumes <- c(11:18, 36, 118)
 
-oput_x <- group_by(oput, holder_id, household_id2, parcel_id, field_id) %>%
+oput_x <- group_by(oput, holder_id, household_id, parcel_id, field_id) %>%
   summarise(crop_count=sum(!is.na(crop_code)),
             legume = ifelse(any(crop_code %in% legumes), 1, 0))
 
 oput <- left_join(oput, oput_x); rm(oput_x)
 
 # remove observations with quantity NA or 0
-oput <- oput[! is.na(oput$crop_qty_harv) & !oput$crop_qty_harv %in% 0, ]
+# oput <- oput[! is.na(oput$crop_qty_harv) & !oput$crop_qty_harv %in% 0, ]
 
 rm("legumes")
 
@@ -132,13 +149,12 @@ rm("legumes")
 # sold is stored in a seperate section of 
 # the household (section 11)
 
-oput2 <- read_dta(file.path(dataPath, "/Post-Harvest/sect11_ph_w2.dta")) %>%
-  select(holder_id, household_id2, crop_code,
+oput2 <- read_dta(file.path(dataPath, "sect11_ph_w1.dta")) %>%
+  select(holder_id, household_id, crop_code,
          sold=ph_s11q01, sold_qty_kg=ph_s11q03_a, sold_qty_gr=ph_s11q03_b,
-         value=ph_s11q04, sold_month=ph_s11q06_a, sold_year=ph_s11q06_b,
-         trans_cost=ph_s11q09)
+         value=ph_s11q04_a, sold_month=ph_s11q06_a, sold_year=ph_s11q06_b,
+         trans_cost=ph_s11q09) 
 oput2$crop_code <- as.integer(oput2$crop_code)
-oput2$sold_month <- toupper(as_factor(oput2$sold_month))
 oput2$sold <- toupper(as_factor(oput2$sold))
 
 oput <- left_join(oput, oput2) %>% unique; rm(oput2)

@@ -107,13 +107,14 @@ oput$inter_crop <- toupper(as_factor(oput$inter_crop))
 # -------------------------------------
 # add a dummy if a legume was grown
 # count number of crops per field
+# crop codes taken from appendix in 
+# the BID
 
-legumes <- c("CHICK PEAS", "HARICOT BEANS", "HORSE BEANS", "LENTILS",
-             "FIELD PEAS", "VETCH", "GIBTO", "SOYA BEANS", "CASTOR BEANS")
+legumes <- c(11:18, 36, 118)
 
 oput_x <- group_by(oput, holder_id, household_id2, parcel_id, field_id) %>%
   summarise(crop_count=sum(!is.na(crop_code)),
-            legume = ifelse(any(crop_code %in% legumes), 1, 0))
+            legume = ifelse(any(crop_name %in% legumes), 1, 0))
 
 oput <- left_join(oput, oput_x); rm(oput_x)
 
