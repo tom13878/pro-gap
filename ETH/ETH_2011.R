@@ -186,7 +186,6 @@ field <- read_dta(file.path(dataPath, "sect3_pp_w1.dta")) %>%
 field$crop_stand <- toupper(as_factor(field$crop_stand))
 
 # crop level variables
-# WDswitch
 
 crop <- read_dta(file.path(dataPath, "sect4_pp_w1.dta")) %>%
   select(household_id, holder_id, parcel_id, field_id, crop_code,
@@ -198,25 +197,33 @@ crop$cropping <- as_factor(crop$cropping)
 crop$month <- as_factor(crop$month)
 crop$crop_code <- as.integer(crop$crop_code)
 
-# ADD THE SEED ROSTER
+# seed level variables
 
+seed <- read_dta(file.path(dataPath, "sect5_pp_w1.dta")) %>%
+  select(household_id, holder_id, crop_code, hybrd=pp_s5q01)
 
 # -------------------------------------
 # unit of observation is not fertilizer
 
-fert1 <- read_dta(file.path(dataPath, "/Post-Planting/sect3_pp_w2.dta")) %>%
-  dplyr::select(holder_id, household_id2, parcel_id, field_id, typ=pp_s3q15, qty=pp_s3q16_a,
-                purch=pp_s3q16b, purch_kg=pp_s3q16c, valu=pp_s3q16d)
-
+fert1 <- read_dta(file.path(dataPath, "sect3_pp_w1.dta")) %>%
+  transmute(holder_id, household_id, parcel_id, field_id, typ=pp_s3q15,
+            qty1=pp_s3q16_a, qty2=pp_s3q16_b/100)
+x <- c("qty1", "qty2")
+make0 <- is.na(fert1[, x])
+fert1[, x][make0] <- 0
+fert1 <- transmute(fert1, holder_id, household_id, parcel_id, field_id, typ,
+                   qty=qty1+qty2)
 fert1$typ <- ifelse(fert1$typ %in% 1, "UREA", NA)
-fert1$purch <- ifelse(fert1$purch %in% 1, 1, 0)
 
-fert2 <- read_dta(file.path(dataPath, "/Post-Planting/sect3_pp_w2.dta")) %>%
-  dplyr::select(holder_id, household_id2, parcel_id, field_id, typ=pp_s3q18, qty=pp_s3q19_a,
-                purch=pp_s3q19b, purch_kg=pp_s3q19c, valu=pp_s3q19d) 
-
+fert2 <- read_dta(file.path(dataPath, "sect3_pp_w1.dta")) %>%
+  transmute(holder_id, household_id, parcel_id, field_id, typ=pp_s3q18,
+            qty1=pp_s3q19_a, qty2=pp_s3q19_b/100)
+x <- c("qty1", "qty2")
+make0 <- is.na(fert2[, x])
+fert2[, x][make0] <- 0
+fert2 <- transmute(fert2, holder_id, household_id, parcel_id, field_id, typ,
+                   qty=qty1+qty2)
 fert2$typ <- ifelse(fert2$typ %in% 1, "DAP", NA)
-fert2$purch <- ifelse(fert2$purch %in% 1, 1, 0)
 
 # -------------------------------------
 # read in nitrogen conversion file
@@ -232,15 +239,13 @@ fert2 <- left_join(fert2, conv)
 # If purchased amount of nitrogen is zero 
 # set to NA to avoid Inf values
 
-fert1$purch_kg <- ifelse(fert1$purch_kg == 0, NA, fert1$purch_kg)
-fert2$purch_kg <- ifelse(fert2$purch_kg == 0, NA, fert2$purch_kg)
+fert1$qty <- ifelse(fert1$qty == 0, NA, fert1$qty)
+fert2$qty <- ifelse(fert2$qty == 0, NA, fert2$qty)
 
 fert1 <- mutate(fert1,
-                Vfert=valu/purch_kg,
                 Qn=qty*n,
                 Qp=qty*p)
 fert2 <- mutate(fert2,
-                Vfert=valu/purch_kg,
                 Qn=qty*n,
                 Qp=qty*p)
 
@@ -248,18 +253,12 @@ fert2 <- mutate(fert2,
 fert1$Qn <- ifelse(fert1$Qn == 0, NA, fert1$Qn)
 fert2$Qn <- ifelse(fert2$Qn == 0, NA, fert2$Qn)
 
-# if vfert is 0 change to NA
-fert1$Vfert <- ifelse(fert1$Vfert == 0, NA, fert1$Vfert)
-fert2$Vfert <- ifelse(fert2$Vfert == 0, NA, fert2$Vfert)
-
 fert <- rbind(fert1, fert2) %>% unique
 
-fert$Pn <- fert$Vfert/fert$n
-
-fert <- group_by(fert, holder_id, household_id2, parcel_id, field_id) %>%
+fert <- group_by(fert, holder_id, household_id, parcel_id, field_id) %>%
   summarise(N=sum(Qn, na.rm=TRUE), P=sum(Qp, na.rm=TRUE),
-            WPn=sum((Qn/N)*Pn, na.rm=TRUE)) %>%
-  mutate(WPn = replace(WPn, WPn==0, NA))
+            UREA=ifelse(any(typ %in% "UREA"), 1, 0),
+            DAP=ifelse(any(typ %in% "DAP"), 1, 0))
 
 rm(fert1, fert2, conv)
 
@@ -267,44 +266,12 @@ rm(fert1, fert2, conv)
 ############### LABOUR ################
 #######################################
 
-# POST PLANTING labour
-pp_lab <- read_dta(file.path(dataPath, "/Post-Planting/sect3_pp_w2.dta")) %>%
-  dplyr::select(holder_id, household_id2, parcel_id, field_id, pp_s3q27_a:pp_s3q29_f) %>%
-  transmute(holder_id, household_id2, parcel_id, field_id,
-            id1=pp_s3q27_a, lab1=pp_s3q27_b*pp_s3q27_c,
-            id2=pp_s3q27_e, lab2=pp_s3q27_f*pp_s3q27_g,
-            id3=pp_s3q27_i, lab3=pp_s3q27_j*pp_s3q27_k,
-            id4=pp_s3q27_m, lab4=pp_s3q27_n*pp_s3q27_o,
-            id5=pp_s3q27_q, lab5=pp_s3q27_r*pp_s3q27_s,
-            id6=pp_s3q27_u, lab6=pp_s3q27_v*pp_s3q27_w,
-            id7=pp_s3q27_y, lab7=pp_s3q27_z*pp_s3q27_ca,
-            hirM=pp_s3q28_a*pp_s3q28_b,
-            hirF=pp_s3q28_d*pp_s3q28_e,
-            hirC=pp_s3q28_g*pp_s3q28_h,
-            OHHlabM=pp_s3q29_a*pp_s3q29_b,
-            OHHlabF=pp_s3q29_c*pp_s3q29_d,
-            OHHlabC=pp_s3q29_e*pp_s3q29_f
-  )
-
-# make all NA values zero
-pp_lab[is.na(pp_lab)] <- 0
-
-# sum all labour across a single plot - all measured in days
-pp_lab <- transmute(pp_lab, holder_id, household_id2, parcel_id, field_id,
-                    plant_lab=lab1 + lab2 + lab3 + lab4 + lab5 + lab6 + lab7 +
-                      hirM + hirF + hirC + OHHlabM + OHHlabF + OHHlabC)
-
-# presumably if crop was planted then some labour
-# was used. Therefore set all 0's for plant_lab
-# to NA
-
-pp_lab$plant_lab[pp_lab$plant_lab %in% 0] <- NA
-
-# POST HARVEST
-ph_lab <- read_dta(file.path(dataPath, "/Post-Harvest/sect10_ph_w2.dta")) %>%
-  dplyr::select(holder_id, household_id2, parcel_id, field_id,
+# POST HARVEST - unlike 2012-13 survey, there is no
+# post planting labour recorded.
+ph_lab <- read_dta(file.path(dataPath, "sect10_ph_w1.dta")) %>%
+  select(holder_id, household_id, parcel_id, field_id,
                 crop_code, ph_s10q01_a:ph_s10q03_f) %>%
-  transmute(holder_id, household_id2, parcel_id, field_id, crop_code,
+  transmute(holder_id, household_id, parcel_id, field_id, crop_code,
             id1=ph_s10q02_a, lab1=ph_s10q02_b*ph_s10q02_c,
             id2=ph_s10q02_e, lab2=ph_s10q02_f*ph_s10q02_g,
             id3=ph_s10q02_i, lab3=ph_s10q02_j*ph_s10q02_k,
@@ -320,9 +287,10 @@ ph_lab <- read_dta(file.path(dataPath, "/Post-Harvest/sect10_ph_w2.dta")) %>%
 # -------------------------------------
 # make all NA values zero
 ph_lab[is.na(ph_lab)] <- 0
+ph_lab$crop_code <- as.integer(ph_lab$crop_code)
 
 # sum all labour across a single plot - all measured in days
-ph_lab <- transmute(ph_lab, holder_id, household_id2, parcel_id, field_id,
+ph_lab <- transmute(ph_lab, holder_id, household_id, parcel_id, field_id,
                     crop_code, harv_lab=lab1 + lab2 + lab3 + lab4 +
                       hirM + hirF + hirC + OHHlabM + OHHlabF + OHHlabC) %>% unique
 
