@@ -9,6 +9,7 @@ if(Sys.info()["user"] == "Tomas"){
 }
 
 library(haven)
+library(lubridate)
 library(dplyr)
 
 options(scipen=999)
@@ -300,14 +301,16 @@ ph_lab$harv_lab[ph_lab$harv_lab %in% 0] <- NA
 ############### GEO ###################
 #######################################
 
-load(file.path(dataPath, "/ETH_geo_total_2013.RData"))
-geo <- geo.total.plot %>% 
-  dplyr::select(holder_id, household_id2, ea_id2, parcel_id, field_id, lon, lat, SPEI, RootDepth, region=NAME_1,
-                AEZ=ssa_aez09, ph=ph_sd1_sd3, ph2=ph_sd1_sd5,
-                SOC=SOC_sd1_sd3, SOC2=SOC_sd1_sd5, rain=gsRainfall, 
-                YA, YW, YP, everything()) %>%
-  unique()
-rm(geo.total.plot)
+# geo <- read_dta(file.path(dataPath, "Pub_ETH_HouseholdGeovariables_Y1.dta"))
+# geo <- geo.total.plot %>% 
+#   dplyr::select(holder_id, household_id, ea_id,
+#                 lon=LON_DD_MOD, lat=LAT_DD_MOD,
+#                 SPEI, RootDepth, region=NAME_1,
+#                 AEZ=ssa_aez09, ph=ph_sd1_sd3, ph2=ph_sd1_sd5,
+#                 SOC=SOC_sd1_sd3, SOC2=SOC_sd1_sd5, rain=gsRainfall, 
+#                 YA, YW, YP, everything()) %>%
+#   unique()
+# rm(geo.total.plot)
 
 #######################################
 ############### AREAs #################
@@ -317,45 +320,46 @@ rm(geo.total.plot)
 # imputed and original gps measurements
 # included
 
-areas <- read_dta(paste(dataPath, "areas_ETH2013.dta", sep="/"))
-areas <- select(areas, holder_id, household_id2,
-                parcel_id, field_id, area_gps, area_gps_mi50,
+areas <- read_dta(paste(dataPath, "../../../Other/Plot_size/areas_eth_y1_imputed.dta", sep="/"))
+areas <- select(areas, holder_id, household_id=case_id, parcel_id,
+                field_id, plot_id, area_gps, area_gps_mi_50,
                 area_farmer=area_sr)
 
 areas$area_gps <- ifelse(areas$area_gps %in% 0, NA, areas$area_gps)
 areas$area_gps_mi50 <- ifelse(areas$area_gps_mi50 %in% 0, NA, areas$area_gps_mi50)
 
-areaTotal <- group_by(areas, household_id2) %>%
-  summarise(area_tot = sum(area_gps_mi50, na.rm=TRUE))
+areaTotal <- group_by(areas, household_id) %>%
+  summarise(area_tot = sum(area_gps_mi_50, na.rm=TRUE))
 
 #######################################
 ############## COMMUNITY ##############
 #######################################
 
-com3 <- read_dta(file.path(dataPath, "Community/sect3_com_w2.dta")) %>%
-  select(ea_id2, popEA=cs3q02, HHEA=cs3q03)
+com3 <- read_dta(file.path(dataPath, "sect3_com_w1.dta")) %>%
+  select(ea_id, popEA=cs3q02, HHEA=cs3q03)
 
-com4 <- read_dta(file.path(dataPath, "Community/sect4_com_w2.dta")) %>%
-  select(ea_id2, road=cs4q01, cost2small_town=cs4q10,
-         cost2large_town=cs4q13, bank=cs4q45, micro_finance=cs4q47)
+com4 <- read_dta(file.path(dataPath, "sect4_com_w1.dta")) %>%
+  select(ea_id, road=cs4q01, cost2small_town=cs4q10,
+         cost2large_town1=cs4q13_1, cost2large_town2=cs4q13_2,
+         bank=cs4q45, micro_finance=cs4q47)
 
 com4$road <- toupper(as_factor(com4$road))
 com4$bank <- toupper(as_factor(com4$bank))
 com4$micro_finance <- toupper(as_factor(com4$micro_finance))
 
-com6 <- read_dta(file.path(dataPath, "Community/sect6_com_w2.dta")) %>%
-  select(ea_id2, plant_month1=cs6q03_a, plant_month2=cs6q03_b, plant_month3=cs6q03_c,
+com6 <- read_dta(file.path(dataPath, "sect6_com_w1.dta")) %>%
+  select(ea_id, plant_month1=cs6q03_a, plant_month2=cs6q03_b, plant_month3=cs6q03_c,
          harv_month1=cs6q04_a, harv_month2=cs6q04_b, harv_month3=cs6q04_c,
-         ext_agent=cs6q08, dist2ext_agent=cs6q09, fert_source=cs6q12,
+         ext_agent=cs6q08, dist2ext_agent1=cs6q09_1, dist2ext_agent2=cs6q09_2, fert_source=cs6q12,
          pest_source=cs6q13, seed_source=cs6q14)
 
 # make a seperate file for month data
-com6$plant_month1 <- as_factor(com6$plant_month1)
-com6$plant_month2 <- as_factor(com6$plant_month2)
-com6$plant_month3 <- as_factor(com6$plant_month3)
-com6$harv_month1 <- as_factor(com6$harv_month1)
-com6$harv_month2 <- as_factor(com6$harv_month2)
-com6$harv_month3 <- as_factor(com6$harv_month3)
+com6$plant_month1 <- month(com6$plant_month1, label=TRUE)
+com6$plant_month2 <- month(com6$plant_month2, label=TRUE)
+com6$plant_month3 <- month(com6$plant_month3, label=TRUE)
+com6$harv_month1 <- month(com6$harv_month1, label=TRUE)
+com6$harv_month2 <- month(com6$harv_month2, label=TRUE)
+com6$harv_month3 <- month(com6$harv_month3, label=TRUE)
 com6$ext_agent <- as_factor(com6$ext_agent)
 com6$fert_source <- as_factor(com6$fert_source)
 com6$pest_source <- as_factor(com6$pest_source)
@@ -371,27 +375,27 @@ rm(com3, com4, com6)
 # -------------------------------------
 # community and location level joins
 
-ETH2013 <- left_join(location, com); rm(com, location)
+ETH2011 <- left_join(location, com); rm(com, location)
 
 # -------------------------------------
 # household level joins
 
-ETH2013 <- left_join(HH13, ETH2013); rm(HH13) 
-ETH2013 <- left_join(ETH2013, areaTotal); rm(areaTotal)
+ETH2011 <- left_join(HH11, ETH2011); rm(HH11) 
+ETH2011 <- left_join(ETH2011, areaTotal); rm(areaTotal)
 
 # -------------------------------------
 # parcel level joins
 
-ETH2013 <- left_join(ETH2013, parcel); rm(parcel)
+ETH2011 <- left_join(ETH2011, parcel); rm(parcel)
 
 # -------------------------------------
 # field level joins
 
-ETH2013 <- left_join(ETH2013, fert); rm(fert) 
-ETH2013 <- left_join(ETH2013, areas); rm(areas)
-ETH2013 <- left_join(ETH2013, pp_lab); rm(pp_lab)
-ETH2013 <- left_join(ETH2013, field); rm(field)
-ETH2013 <- left_join(ETH2013, geo); rm(geo)
+ETH2011 <- left_join(ETH2011, fert); rm(fert) 
+ETH2011 <- left_join(ETH2011, areas); rm(areas)
+ETH2011 <- left_join(ETH2011, pp_lab); rm(pp_lab)
+ETH2011 <- left_join(ETH2011, field); rm(field)
+ETH2011 <- left_join(ETH2011, geo); rm(geo)
 
 # -------------------------------------
 # crop level joins
