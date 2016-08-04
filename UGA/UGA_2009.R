@@ -167,8 +167,7 @@ rm(list=c("legumes", "cashCropNPerm", "cashCropsPerm",
 
 plot <- read_dta(file.path(dataPath, "AGSEC3A.dta")) %>%
   select(HHID, parcel_id=a3aq1, plot_id=a3aq3, manure=a3aq4, manure_qty = a3aq5, 
-                inorg=a3aq14, typ=a3aq15, inorg_qty=a3aq16, inorg_purch=a3aq17,
-                inorg_purch_qty=a3aq18, inorg_value=a3aq19, pest=a3aq26, pest_unit=a3aq28a,
+                inorg=a3aq14, pest=a3aq26, pest_unit=a3aq28a,
                 pest_qty=a3aq28b, pest_purch=a3aq29, pest_purch_qty=a3aq30, pest_purch_value=a3aq31,
                 fam_lab_people=a3aq38, fam_lab_days=a3aq39, hir_lab=a3aq41, hir_lab_men_days=a3aq42a,
                 hir_lab_woman_days=a3aq42b, hir_lab_child_days=a3aq42c)
@@ -213,6 +212,49 @@ parcel$soil <- as_factor(parcel$soil)
 parcel$slope_farmer <- as_factor(parcel$slope_farmer)
 parcel$HHID <- as.character(parcel$HHID)
 parcel$parcel_id <- as.character(parcel$parcel_id)
+
+# -------------------------------------
+# fertilizer
+
+fert <- read_dta(file.path(dataPath, "AGSEC3A.dta")) %>%
+  select(HHID, parcel_id=a3aq1, plot_id=a3aq3, typ=a3aq15,
+         qty=a3aq16, purch_kg=a3aq18, valu=a3aq19)
+fert$typ <- as_factor(fert$typ)
+
+# -------------------------------------
+# read in nitrogen conversion file
+
+conv <- read.csv(file.path(paste0(dataPath,"/../../.."), "Other/Fertilizer/Fert_comp.csv")) %>%
+  transmute(typ=Fert_type2, n=N_share/100, p=P_share/100) 
+
+fert <- left_join(fert, conv)
+
+# -------------------------------------
+# If purchased amount of nitrogen is zero 
+# set to NA to avoid Inf values
+
+fert$purch_kg <- ifelse(fert$purch_kg == 0, NA, fert$purch_kg)
+
+fert <- mutate(fert,
+                Vfert=valu/purch_kg,
+                Qn=qty*n,
+                Qp=qty*p)
+
+# if Qn is zero change to NA
+fert$Qn <- ifelse(fert$Qn == 0, NA, fert$Qn)
+
+# if vfert is 0 change to NA
+fert$Vfert <- ifelse(fert$Vfert == 0, NA, fert$Vfert)
+
+fert$Pn <- fert$Vfert/fert$n
+
+fert <- group_by(fert, HHID, parcel_id, plot_id) %>%
+  summarise(N=sum(Qn, na.rm=TRUE), P=sum(Qp, na.rm=TRUE),
+            WPn=sum((Qn/N)*Pn, na.rm=TRUE)) %>%
+  mutate(WPn = replace(WPn, WPn==0, NA))
+fert$HHID <- as.character(fert$HHID)
+fert$parcel_id <- as.character(fert$parcel_id)
+rm(fert1, fert2, conv)
 
 #######################################
 ############### GEO ###################
@@ -324,6 +366,7 @@ UGA2009 <- left_join(UGA2009, parcel); rm(parcel)
 # joins at the plot level
 UGA2009 <- left_join(UGA2009, oput); rm(oput)
 UGA2009 <- left_join(UGA2009, plot); rm(plot)
+UGA2009 <- left_join(UGA2009, fert); rm(fert)
 
 # -------------------------------------
 # Make some new variables and changes
@@ -356,8 +399,6 @@ UGA2009[, lvstock][is.na(UGA2009[, lvstock])] <- 0;rm(lvstock)
 # -------------------------------------
 
 UGA2009 <- select(UGA2009, -yob,
-                  -typ, -inorg_qty, -inorg_purch,
-                  -inorg_purch_qty, -inorg_value,
                   -pest_unit, -pest_qty, -pest_purch,
                   -pest_purch_qty, -pest_purch_value,
                   -fam_lab_people, -fam_lab_days,
