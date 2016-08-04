@@ -124,7 +124,7 @@ oput <- transmute(oput, household_id, holder_id, parcel_id, field_id,
                   crop_code, day_cut, month_cut, 
                   crop_qty_harv_fresh=crop_qty_harv_fresh_kg+crop_qty_harv_fresh_g,
                   crop_qty_harv_dry=crop_qty_harv_dry_kg+crop_qty_harv_dry_g,
-                  crop_qty_harv_tot=crop_qty_harv_tot_kg+crop_qty_harv_tot_g,
+                  crop_qty_harv=crop_qty_harv_tot_kg+crop_qty_harv_tot_g,
                   crop_name)
 
 # -------------------------------------
@@ -157,6 +157,7 @@ oput2 <- read_dta(file.path(dataPath, "sect11_ph_w1.dta")) %>%
          trans_cost=ph_s11q09) 
 oput2$crop_code <- as.integer(oput2$crop_code)
 oput2$sold <- toupper(as_factor(oput2$sold))
+oput2$sold_month <- month(oput2$sold_month, label=TRUE)
 
 oput <- left_join(oput, oput2) %>% unique; rm(oput2)
 
@@ -174,6 +175,7 @@ parcel <- read_dta(file.path(dataPath, "sect2_pp_w1.dta")) %>%
                 title=pp_s2q04)
 
 parcel$title <- toupper(as_factor(parcel$title))
+parcel$parcel_id <- as.integer(parcel$parcel_id)
 
 # field level variables
 
@@ -185,6 +187,8 @@ field <- read_dta(file.path(dataPath, "sect3_pp_w1.dta")) %>%
                 other_org=pp_s3q25) 
 
 field$crop_stand <- toupper(as_factor(field$crop_stand))
+field$parcel_id <- as.integer(field$parcel_id)
+field$field_id <- as.integer(field$field_id)
 
 # crop level variables
 
@@ -195,7 +199,7 @@ crop <- read_dta(file.path(dataPath, "sect4_pp_w1.dta")) %>%
         crop_name)
 
 crop$cropping <- as_factor(crop$cropping)
-crop$month <- as_factor(crop$month)
+crop$month <- toupper(as_factor(crop$month))
 crop$crop_code <- as.integer(crop$crop_code)
 
 # seed level variables
@@ -261,6 +265,8 @@ fert <- group_by(fert, holder_id, household_id, parcel_id, field_id) %>%
             UREA=ifelse(any(typ %in% "UREA"), 1, 0),
             DAP=ifelse(any(typ %in% "DAP"), 1, 0))
 
+fert$parcel_id <- as.integer(fert$parcel_id)
+fert$field_id <- as.integer(fert$field_id)
 rm(fert1, fert2, conv)
 
 #######################################
@@ -322,14 +328,16 @@ ph_lab$harv_lab[ph_lab$harv_lab %in% 0] <- NA
 
 areas <- read_dta(paste(dataPath, "../../../Other/Plot_size/areas_eth_y1_imputed.dta", sep="/"))
 areas <- select(areas, holder_id, household_id=case_id, parcel_id,
-                field_id, plot_id, area_gps, area_gps_mi_50,
+                field_id, area_gps, area_gps_mi_50,
                 area_farmer=area_sr)
 
 areas$area_gps <- ifelse(areas$area_gps %in% 0, NA, areas$area_gps)
-areas$area_gps_mi50 <- ifelse(areas$area_gps_mi50 %in% 0, NA, areas$area_gps_mi50)
+areas$area_gps_mi_50 <- ifelse(areas$area_gps_mi_50 %in% 0, NA, areas$area_gps_mi_50)
 
 areaTotal <- group_by(areas, household_id) %>%
   summarise(area_tot = sum(area_gps_mi_50, na.rm=TRUE))
+
+areas$parcel_id <- as.integer(areas$parcel_id)
 
 #######################################
 ############## COMMUNITY ##############
@@ -393,15 +401,17 @@ ETH2011 <- left_join(ETH2011, parcel); rm(parcel)
 
 ETH2011 <- left_join(ETH2011, fert); rm(fert) 
 ETH2011 <- left_join(ETH2011, areas); rm(areas)
-ETH2011 <- left_join(ETH2011, pp_lab); rm(pp_lab)
 ETH2011 <- left_join(ETH2011, field); rm(field)
-ETH2011 <- left_join(ETH2011, geo); rm(geo)
+# ETH2011 <- left_join(ETH2011, geo); rm(geo)
 
 # -------------------------------------
 # crop level joins
-ETH2013 <- left_join(ETH2013, oput); rm(oput)
-ETH2013 <- left_join(ETH2013, crop); rm(crop)
-ETH2013 <- left_join(ETH2013, ph_lab); rm(ph_lab)
+ETH2011 <- left_join(ETH2011, oput); rm(oput)
+ETH2011 <- left_join(ETH2011, crop); rm(crop)
+ETH2011 <- left_join(ETH2011, ph_lab); rm(ph_lab)
 
-rm(dataPath, F)
+# make a surveyyear variable
+ETH2011$surveyyear <- 2011
+
+rm(dataPath, F, make0, seed, x, field)
 
