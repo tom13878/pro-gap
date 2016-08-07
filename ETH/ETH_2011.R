@@ -187,6 +187,7 @@ field <- read_dta(file.path(dataPath, "sect3_pp_w1.dta")) %>%
                 other_org=pp_s3q25) 
 
 field$crop_stand <- toupper(as_factor(field$crop_stand))
+field$extension <- toupper(as_factor(field$extension))
 field$parcel_id <- as.integer(field$parcel_id)
 field$field_id <- as.integer(field$field_id)
 
@@ -413,5 +414,5 @@ ETH2011 <- left_join(ETH2011, ph_lab); rm(ph_lab)
 # make a surveyyear variable
 ETH2011$surveyyear <- 2011
 
-rm(dataPath, F, make0, seed, x, field)
+rm(dataPath, make0, seed, x)
 
