@@ -1,6 +1,7 @@
 #######################################
 ########## GHANA 2010-11 ##############
 ####################################### 
+ # THIS IS OLD CODE
 
 # Tom dataPath
 dataPath <- "C:/Users/Tomas/Documents/LEI/data/GHA/Data"
