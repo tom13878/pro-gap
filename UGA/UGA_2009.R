@@ -8,8 +8,6 @@ if(Sys.info()["user"] == "Tomas"){
   dataPath <- "W:/LEI/Internationaal Beleid  (IB)/Projecten/2285000066 Africa Maize Yield Gap/SurveyData/UGA/2009_10/Data/"
 }
 
-
-
 library(haven)
 library(reshape2)
 library(dplyr)

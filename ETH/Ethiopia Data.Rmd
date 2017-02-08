@@ -1,0 +1,29 @@
+---
+title: "Ethiopia Data"
+author: "Tomas Morley"
+date: "28 July 2016"
+output: pdf_document
+---
+
+```{r}
+if(Sys.info()["user"] == "Tomas"){
+  filePath <- "C:/Users/Tomas/Documents/LEI/"
+} else {
+  filePath <- "N:/Internationaal Beleid  (IB)/Projecten/2285000066 Africa Maize Yield Gap/SurveyData/ETH/2011/Data"
+}
+```
+
+- mention the funny thing about the holder_id variable
+- mention the funny thing about there being no post planting labour
+- in 2011 survey
+- mention how many more urban households were added in
+- the second wave of the data
+
+```{r}
+# source the raw data
+source(file.path(filePath, "pro-gap/ETH/ETH_2013PP.R"))
+```
+
+```{r}
+maize <- filter(ETH2013, status=="HEAD", crop_code==2)
+```
